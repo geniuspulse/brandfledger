@@ -1,3 +1,7 @@
+// UPDATED: src/app/(auth)/register/page.tsx
+// Change: after signup, go straight to /dashboard (not /onboarding)
+// The dashboard will show the setup checklist instead
+
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -16,7 +20,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // On mount: clear any stale session so register works cleanly
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.signOut().finally(() => setReady(true));
@@ -48,10 +51,9 @@ export default function RegisterPage() {
     }
 
     if (data.session) {
-      // Autoconfirm is on — logged in immediately
-      window.location.href = "/onboarding";
+      // Auto-confirm on — go straight to dashboard (checklist will show there)
+      window.location.href = "/dashboard";
     } else {
-      // Email confirm required
       setError("Account created! Check your email to verify, then sign in.");
       setLoading(false);
     }
@@ -86,41 +88,17 @@ export default function RegisterPage() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full name</Label>
-                <Input
-                  id="fullName"
-                  placeholder="John Doe"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  required
-                  autoComplete="name"
-                />
+                <Input id="fullName" placeholder="John Doe" value={fullName} onChange={e => setFullName(e.target.value)} required autoComplete="name" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
+                <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Min 8 characters"
-                  minLength={8}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                />
+                <Input id="password" type="password" placeholder="At least 6 characters" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" minLength={6} />
               </div>
-              <Button type="submit" className="w-full" disabled={loading || !fullName || !email || !password}>
+              <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : "Create account"}
               </Button>
             </form>

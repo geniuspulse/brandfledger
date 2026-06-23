@@ -9,8 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, FileText, Trash2, Eye, Printer } from "lucide-react";
-import { formatCurrency, formatDate, getStatusColor, calculateInvoiceTotals } from "@/lib/utils";
+import { Plus, Search, FileText, Trash2, Printer, Mail, Loader2 } from "lucide-react";
+import { formatCurrency, formatDate, calculateInvoiceTotals } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { Invoice, Customer, Product, Business, InvoiceItem } from "@/types";
 
@@ -24,6 +24,9 @@ export default function InvoicesPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailInvoice, setEmailInvoice] = useState<Invoice | null>(null);
+  const [emailLoading, setEmailLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     customer_id: "",
@@ -42,7 +45,7 @@ export default function InvoicesPage() {
     const { data: biz } = await supabase.from("businesses").select("*").eq("owner_id", user!.id).single();
     setBusiness(biz);
     const [{ data: invs }, { data: custs }, { data: prods }] = await Promise.all([
-      supabase.from("invoices").select("*, customers(name)").eq("business_id", biz.id).order("created_at", { ascending: false }),
+      supabase.from("invoices").select("*, customers(name, email)").eq("business_id", biz.id).order("created_at", { ascending: false }),
       supabase.from("customers").select("*").eq("business_id", biz.id).order("name"),
       supabase.from("products").select("*").eq("business_id", biz.id).order("name"),
     ]);
@@ -72,7 +75,6 @@ export default function InvoicesPage() {
   function applyProduct(idx: number, productId: string) {
     const prod = products.find(p => p.id === productId);
     if (!prod) return;
-    updateItem(idx, "name", prod.name);
     setForm(prev => {
       const items = [...prev.items];
       items[idx] = { ...items[idx], name: prod.name, description: prod.description ?? "", unit_price: prod.price, total: items[idx].quantity * prod.price };
@@ -122,6 +124,41 @@ export default function InvoicesPage() {
     loadData();
   }
 
+  function openEmailDialog(inv: Invoice) {
+    setEmailInvoice(inv);
+    setEmailOpen(true);
+  }
+
+  async function handleSendEmail() {
+    if (!emailInvoice || !business) return;
+    const customer = (emailInvoice as any).customers;
+    if (!customer?.email) {
+      toast({ title: "No email address", description: "This customer has no email on file.", variant: "destructive" });
+      return;
+    }
+    setEmailLoading(true);
+    try {
+      const res = await fetch("/api/invoices/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: emailInvoice.id }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error ?? "Failed to send");
+      if (emailInvoice.status === "draft") {
+        const supabase = createClient();
+        await supabase.from("invoices").update({ status: "sent" }).eq("id", emailInvoice.id);
+      }
+      toast({ title: "Invoice emailed!", description: `Sent to ${customer.email}` });
+      setEmailOpen(false);
+      loadData();
+    } catch (err: any) {
+      toast({ title: "Error sending email", description: err.message, variant: "destructive" });
+    } finally {
+      setEmailLoading(false);
+    }
+  }
+
   const filtered = invoices.filter(inv =>
     inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
     (inv as any).customers?.name?.toLowerCase().includes(search.toLowerCase())
@@ -164,7 +201,6 @@ export default function InvoicesPage() {
                     <Input type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
                   </div>
                 </div>
-
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label>Line Items</Label>
@@ -191,61 +227,79 @@ export default function InvoicesPage() {
                         </div>
                         <div className="col-span-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeItem(idx)} disabled={form.items.length === 1}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-
-                <div className="border-t pt-4 space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal, business?.currency)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Tax ({form.tax_rate}%)</span><span>{formatCurrency(taxAmount, business?.currency)}</span></div>
-                  <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{formatCurrency(total, business?.currency)}</span></div>
+                <div className="flex justify-end">
+                  <div className="text-right space-y-1 text-sm">
+                    <div className="flex gap-8"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal, business?.currency)}</span></div>
+                    <div className="flex gap-8"><span className="text-muted-foreground">Tax ({form.tax_rate}%)</span><span>{formatCurrency(taxAmount, business?.currency)}</span></div>
+                    <div className="flex gap-8 font-bold text-base border-t pt-1"><span>Total</span><span>{formatCurrency(total, business?.currency)}</span></div>
+                  </div>
                 </div>
-
                 <div className="space-y-2">
                   <Label>Notes</Label>
-                  <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Payment terms, thank you message..." />
+                  <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Payment terms, thank you note..." />
                 </div>
-
-                <Button onClick={handleSave} disabled={loading} className="w-full">
-                  {loading ? "Creating..." : "Create Invoice"}
-                </Button>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                  <Button onClick={handleSave} disabled={loading || !form.customer_id}>
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Invoice
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
         {filtered.length === 0 ? (
-          <Card><CardContent className="flex flex-col items-center justify-center py-16 gap-3">
-            <FileText className="h-12 w-12 text-muted-foreground/50" />
-            <p className="text-muted-foreground">{search ? "No invoices match your search." : "No invoices yet. Create your first invoice!"}</p>
-          </CardContent></Card>
+          <div className="text-center py-12 text-muted-foreground">
+            <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <p>No invoices yet. Create your first invoice!</p>
+          </div>
         ) : (
           <div className="space-y-2">
             {filtered.map(inv => (
-              <Card key={inv.id}>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <FileText className="h-5 w-5 text-primary" />
+              <Card key={inv.id} className="hover:shadow-sm transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium">{inv.invoice_number}</div>
+                        <div className="text-sm text-muted-foreground">{(inv as any).customers?.name ?? "—"}</div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{inv.invoice_number}</p>
-                      <p className="text-sm text-muted-foreground">{(inv as any).customers?.name} · Due {formatDate(inv.due_date)}</p>
+                    <div className="text-right shrink-0">
+                      <div className="font-semibold">{formatCurrency(inv.total, business?.currency)}</div>
+                      <div className="text-xs text-muted-foreground">{formatDate(inv.issue_date)}</div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Select value={inv.status} onValueChange={v => updateStatus(inv.id, v)}>
-                      <SelectTrigger className="w-28 h-8">
-                        <Badge className={`${getStatusColor(inv.status)} border-0`}>{inv.status}</Badge>
-                      </SelectTrigger>
-                      <SelectContent>{statuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <span className="font-semibold">{formatCurrency(inv.total, business?.currency)}</span>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(inv.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <div className="shrink-0">
+                      <Select value={inv.status} onValueChange={v => updateStatus(inv.id, v)}>
+                        <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {statuses.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {(inv.status === "draft" || inv.status === "sent") && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Email invoice" onClick={() => openEmailDialog(inv)}>
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Print" onClick={() => window.print()}>
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(inv.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -253,6 +307,34 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Email Invoice</DialogTitle></DialogHeader>
+          {emailInvoice && (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4 space-y-2 text-sm bg-muted/30">
+                <div className="flex justify-between"><span className="text-muted-foreground">Invoice</span><span className="font-medium">{emailInvoice.invoice_number}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span>{(emailInvoice as any).customers?.name ?? "—"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">To</span><span className="text-primary">{(emailInvoice as any).customers?.email ?? "No email on file"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold">{formatCurrency(emailInvoice.total, business?.currency)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Due</span><span>{formatDate(emailInvoice.due_date)}</span></div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                The customer will receive a professional email with full invoice details.
+                {emailInvoice.status === "draft" && " Status will be updated to Sent."}
+              </p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
+                <Button onClick={handleSendEmail} disabled={emailLoading || !(emailInvoice as any).customers?.email}>
+                  {emailLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
+                  Send Email
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

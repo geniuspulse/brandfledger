@@ -43,8 +43,7 @@ export default function OnboardingPage() {
       business_id: business.id, user_id: user.id, role: "owner",
     });
 
-    router.push("/dashboard");
-    router.refresh();
+    window.location.href = "/dashboard";
   }
 
   return (

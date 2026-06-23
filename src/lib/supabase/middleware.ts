@@ -1,3 +1,7 @@
+// UPDATED: src/lib/supabase/middleware.ts
+// Removed /onboarding from protected paths (page no longer exists as a route)
+// Kept /team and /subscription as protected
+
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -24,25 +28,22 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  // Always let auth routes through
+  // Always let these through
   if (pathname.startsWith("/auth/") || pathname.startsWith("/api/")) {
     return supabaseResponse;
   }
 
-  // FIX: expanded protected paths — includes /onboarding, /team, /subscription
   const protectedPaths = [
     "/dashboard", "/customers", "/invoices", "/products",
     "/payments", "/expenses", "/reports", "/settings",
-    "/onboarding", "/team", "/subscription",
+    "/team", "/subscription",
   ];
   const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
 
-  // Unauthenticated user hitting a protected route → login
   if (!user && isProtected) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Authenticated user hitting login or register → dashboard
   if (user && (pathname === "/login" || pathname === "/register")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }

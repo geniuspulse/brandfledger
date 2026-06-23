@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,31 +14,55 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  // On mount: clear any stale session so register works cleanly
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.signOut().finally(() => setReady(true));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError("");
-    const supabase = createClient();
+    if (!email || !password || !fullName) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    setLoading(true);
+    setError("");
 
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
+    const supabase = createClient();
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName.trim() },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
-    if (error) { setError(error.message); setLoading(false); return; }
-
-    // If session exists immediately (autoconfirm on), go straight to onboarding
-    if (data.session) {
-      window.location.href = "/onboarding";
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
       return;
     }
 
-    // Otherwise (email confirm required) show message
-    setLoading(false);
-    setError("Check your email to confirm your account, then sign in.");
+    if (data.session) {
+      // Autoconfirm is on — logged in immediately
+      window.location.href = "/onboarding";
+    } else {
+      // Email confirm required
+      setError("Account created! Check your email to verify, then sign in.");
+      setLoading(false);
+    }
+  }
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
@@ -56,23 +80,47 @@ export default function RegisterPage() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className={`rounded-md p-3 text-sm ${error.startsWith("Check") ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                <div className={`rounded-md p-3 text-sm ${error.startsWith("Account created") ? "bg-green-50 text-green-700 border border-green-200" : "bg-destructive/10 text-destructive"}`}>
                   {error}
                 </div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full name</Label>
-                <Input id="fullName" placeholder="John Doe" value={fullName} onChange={e => setFullName(e.target.value)} required />
+                <Input
+                  id="fullName"
+                  placeholder="John Doe"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  autoComplete="name"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="Min 8 characters" minLength={8} value={password} onChange={e => setPassword(e.target.value)} required />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Min 8 characters"
+                  minLength={8}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || !fullName || !email || !password}>
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : "Create account"}
               </Button>
             </form>

@@ -26,7 +26,9 @@ export default function OnboardingPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
+
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
@@ -43,7 +45,15 @@ export default function OnboardingPage() {
       business_id: business.id, user_id: user.id, role: "owner",
     });
 
-    window.location.href = "/dashboard";
+    // FIX: router.refresh() forces a server-side middleware cycle which writes the
+    // Supabase auth cookies into the SSR cookie jar. Without this, the DashboardLayout
+    // server component can't see the session and redirects to /login.
+    router.refresh();
+
+    // Small delay to let the refresh settle before navigating
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    router.push("/dashboard");
   }
 
   return (
@@ -96,7 +106,9 @@ export default function OnboardingPage() {
                 </div>
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating business...</> : "Create business & continue →"}
+                {loading
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating business...</>
+                  : "Create business & continue →"}
               </Button>
             </form>
           </CardContent>

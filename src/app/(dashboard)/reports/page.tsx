@@ -1,3 +1,6 @@
+// UPDATED: src/app/(dashboard)/reports/page.tsx
+// Changes: Added working CSV export button + expense breakdown by category chart
+
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -5,16 +8,21 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { Download, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import type { Business } from "@/types";
+
+const PIE_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6"];
 
 export default function ReportsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [period, setPeriod] = useState("12");
   const [data, setData] = useState<any[]>([]);
+  const [expenseByCategory, setExpenseByCategory] = useState<{ name: string; value: number }[]>([]);
   const [summary, setSummary] = useState({ revenue: 0, expenses: 0, profit: 0 });
+  const [rawInvoices, setRawInvoices] = useState<any[]>([]);
+  const [rawExpenses, setRawExpenses] = useState<any[]>([]);
 
   useEffect(() => { loadData(); }, [period]);
 
@@ -30,9 +38,12 @@ export default function ReportsPage() {
     fromDate.setDate(1);
 
     const [{ data: invoices }, { data: expenses }] = await Promise.all([
-      supabase.from("invoices").select("total, status, issue_date").eq("business_id", biz.id).eq("status", "paid").gte("issue_date", fromDate.toISOString()),
-      supabase.from("expenses").select("amount, date").eq("business_id", biz.id).gte("date", fromDate.toISOString()),
+      supabase.from("invoices").select("total, status, issue_date, invoice_number, customers(name)").eq("business_id", biz.id).eq("status", "paid").gte("issue_date", fromDate.toISOString()),
+      supabase.from("expenses").select("amount, date, description, category, vendor").eq("business_id", biz.id).gte("date", fromDate.toISOString()),
     ]);
+
+    setRawInvoices(invoices ?? []);
+    setRawExpenses(expenses ?? []);
 
     const monthMap: Record<string, { month: string; revenue: number; expenses: number; profit: number }> = {};
     for (let i = 0; i < months; i++) {
@@ -59,6 +70,35 @@ export default function ReportsPage() {
       expenses: chartData.reduce((s, m) => s + m.expenses, 0),
       profit: chartData.reduce((s, m) => s + m.profit, 0),
     });
+
+    // Expense breakdown by category
+    const catMap: Record<string, number> = {};
+    expenses?.forEach(exp => {
+      catMap[exp.category || "Other"] = (catMap[exp.category || "Other"] ?? 0) + exp.amount;
+    });
+    setExpenseByCategory(Object.entries(catMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value));
+  }
+
+  function exportCSV() {
+    const currency = business?.currency ?? "USD";
+    const rows: string[][] = [
+      ["Type", "Date", "Description", "Category / Customer", "Amount", "Status"],
+    ];
+    rawInvoices.forEach(inv => {
+      rows.push(["Revenue", inv.issue_date, `Invoice ${inv.invoice_number}`, (inv as any).customers?.name ?? "", String(inv.total), "paid"]);
+    });
+    rawExpenses.forEach(exp => {
+      rows.push(["Expense", exp.date, exp.description, exp.category ?? "", String(exp.amount), ""]);
+    });
+
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `brandfledger-report-${period}mo-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -74,6 +114,9 @@ export default function ReportsPage() {
               <SelectItem value="12">Last 12 months</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={exportCSV}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -110,20 +153,41 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Profit Trend</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-50" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => formatCurrency(v, business?.currency)} />
-                <Line type="monotone" dataKey="profit" name="Profit" stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6", r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Profit Trend</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-50" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v, business?.currency)} />
+                  <Line type="monotone" dataKey="profit" name="Profit" stroke="#3b82f6" strokeWidth={2} dot={{ fill: "#3b82f6", r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {expenseByCategory.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Expenses by Category</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie data={expenseByCategory} cx="50%" cy="50%" outerRadius={80} dataKey="value" nameKey="name">
+                      {expenseByCategory.map((_, idx) => (
+                        <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => formatCurrency(v, business?.currency)} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

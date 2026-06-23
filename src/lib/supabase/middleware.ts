@@ -9,13 +9,9 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+        getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -26,23 +22,22 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
 
-  // Never intercept the auth callback — it handles its own redirects
-  if (pathname.startsWith("/auth/")) {
-    return supabaseResponse;
-  }
+  // Always let auth callback through
+  if (pathname.startsWith("/auth/")) return supabaseResponse;
 
-  const authPaths = ["/login", "/register", "/forgot-password", "/reset-password"];
-  const isAuthPath = authPaths.some((p) => pathname.startsWith(p));
-  const isPublic = pathname === "/";
+  const protectedPaths = ["/dashboard", "/customers", "/invoices", "/products",
+                          "/payments", "/expenses", "/reports", "/settings"];
+  const isProtected = protectedPaths.some(p => pathname.startsWith(p));
 
-  if (!user && !isAuthPath && !isPublic) {
+  // Only block unauthenticated users from protected routes
+  if (!user && isProtected) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (user && isAuthPath) {
-    // Returning user hitting auth pages → send to dashboard
+
+  // If authenticated user hits /login, redirect to dashboard
+  if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

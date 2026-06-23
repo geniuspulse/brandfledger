@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -20,13 +19,48 @@ function LoginForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
+
     const supabase = createClient();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError(error.message); setLoading(false); return; }
+
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (authError) {
+      // Map common Supabase errors to friendly messages
+      const msg = authError.message;
+      if (msg.includes("Invalid login credentials")) {
+        setError("Incorrect email or password. Please try again.");
+      } else if (msg.includes("Email not confirmed")) {
+        setError("Please verify your email before signing in.");
+      } else if (msg.includes("Too many requests")) {
+        setError("Too many attempts. Please wait a few minutes and try again.");
+      } else {
+        setError(msg);
+      }
+      setLoading(false);
+      return;
+    }
+
     if (data.session) {
-      // Hard redirect — ensures session cookie is read on next page load
-      window.location.href = "/dashboard";
+      // Check if user has a business
+      const { data: businesses } = await supabase
+        .from("businesses")
+        .select("id")
+        .eq("owner_id", data.session.user.id)
+        .limit(1);
+
+      if (!businesses || businesses.length === 0) {
+        window.location.href = "/onboarding";
+      } else {
+        window.location.href = "/dashboard";
+      }
+    } else {
+      setError("Sign in failed — no session returned. Please try again.");
+      setLoading(false);
     }
   }
 
@@ -52,17 +86,27 @@ function LoginForm() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                <Input
+                  id="email" type="email" placeholder="you@example.com"
+                  value={email} onChange={e => setEmail(e.target.value)} required
+                />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
+                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                    Forgot password?
+                  </Link>
                 </div>
-                <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+                <Input
+                  id="password" type="password" placeholder="Your password"
+                  value={password} onChange={e => setPassword(e.target.value)} required
+                />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign in"}
+                {loading
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</>
+                  : "Sign in"}
               </Button>
             </form>
           </CardContent>
@@ -80,7 +124,11 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
       <LoginForm />
     </Suspense>
   );

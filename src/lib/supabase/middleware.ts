@@ -24,20 +24,26 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  // Always let auth callback through
-  if (pathname.startsWith("/auth/")) return supabaseResponse;
+  // Always let auth routes through
+  if (pathname.startsWith("/auth/") || pathname.startsWith("/api/")) {
+    return supabaseResponse;
+  }
 
-  const protectedPaths = ["/dashboard", "/customers", "/invoices", "/products",
-                          "/payments", "/expenses", "/reports", "/settings"];
-  const isProtected = protectedPaths.some(p => pathname.startsWith(p));
+  // FIX: expanded protected paths — includes /onboarding, /team, /subscription
+  const protectedPaths = [
+    "/dashboard", "/customers", "/invoices", "/products",
+    "/payments", "/expenses", "/reports", "/settings",
+    "/onboarding", "/team", "/subscription",
+  ];
+  const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
 
-  // Only block unauthenticated users from protected routes
+  // Unauthenticated user hitting a protected route → login
   if (!user && isProtected) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // If authenticated user hits /login, redirect to dashboard
-  if (user && pathname === "/login") {
+  // Authenticated user hitting login or register → dashboard
+  if (user && (pathname === "/login" || pathname === "/register")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

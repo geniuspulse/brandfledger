@@ -1,12 +1,5 @@
-// FIXED: src/app/(auth)/register/page.tsx
-// Bug: useEffect called supabase.auth.signOut() on mount, button stayed disabled
-//      if signOut stalled (cold Vercel function, no active session, etc.)
-// Fix: remove the signOut entirely — it's unnecessary. The register form creates
-//      a NEW account; there's no reason to sign out first. If a logged-in user 
-//      reaches /register, the middleware already redirects them to /dashboard.
-
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -24,16 +17,25 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Refs to avoid stale closure on submit
-  const refs = { fullName, email, password };
+  // Refs so the async handler always reads the latest values
+  const fullNameRef = useRef(fullName);
+  const emailRef = useRef(email);
+  const passwordRef = useRef(password);
+  fullNameRef.current = fullName;
+  emailRef.current = email;
+  passwordRef.current = password;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !password || !fullName) {
+    const nameVal = fullNameRef.current.trim();
+    const emailVal = emailRef.current.trim().toLowerCase();
+    const passVal = passwordRef.current;
+
+    if (!nameVal || !emailVal || !passVal) {
       setError("Please fill in all fields.");
       return;
     }
-    if (password.length < 6) {
+    if (passVal.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
@@ -42,10 +44,10 @@ export default function RegisterPage() {
 
     const supabase = createClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
+      email: emailVal,
+      password: passVal,
       options: {
-        data: { full_name: fullName.trim() },
+        data: { full_name: nameVal },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
@@ -57,7 +59,7 @@ export default function RegisterPage() {
     }
 
     if (data.session) {
-      // Auto-confirm on — go straight to dashboard, checklist handles setup
+      // Auto-confirm on — go straight to dashboard
       router.refresh();
       await new Promise(r => setTimeout(r, 100));
       router.push("/dashboard");

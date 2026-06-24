@@ -7,14 +7,25 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Zap, Loader2 } from "lucide-react";
 
 function MessageBanner() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
   if (!message) return null;
-  return <div className="rounded-md bg-primary/10 p-3 text-sm text-primary">{message}</div>;
+  return (
+    <div className="rounded-md bg-primary/10 p-3 text-sm text-primary border border-primary/20">
+      {message}
+    </div>
+  );
 }
 
 export default function LoginForm() {
@@ -24,26 +35,46 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!email || !password) { setError("Please enter your email and password."); return; }
-    setLoading(true); setError("");
+    const form = e.currentTarget;
+    const emailVal = (form.elements.namedItem("email") as HTMLInputElement).value.trim();
+    const passVal = (form.elements.namedItem("password") as HTMLInputElement).value;
+
+    if (!emailVal || !passVal) {
+      setError("Please enter your email and password.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
     const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: emailVal,
+      password: passVal,
+    });
+
     if (authError) {
       const msg = authError.message;
-      if (msg.includes("Invalid login credentials")) setError("Incorrect email or password. Please try again.");
-      else if (msg.includes("Email not confirmed")) setError("Please verify your email before signing in.");
-      else if (msg.includes("Too many")) setError("Too many attempts. Please wait a few minutes.");
-      else setError(msg);
-      setLoading(false); return;
+      if (msg.includes("Invalid login credentials")) {
+        setError("Incorrect email or password.");
+      } else if (msg.includes("Email not confirmed")) {
+        setError("Please verify your email first — check your inbox.");
+      } else if (msg.includes("Too many")) {
+        setError("Too many attempts. Wait a few minutes and try again.");
+      } else {
+        setError(msg);
+      }
+      setLoading(false);
+      return;
     }
+
     if (data.session) {
       router.refresh();
-      await new Promise(r => setTimeout(r, 150));
       router.push("/dashboard");
     } else {
-      setError("Sign in failed — no session returned. Please try again.");
+      setError("Sign in failed — please try again.");
       setLoading(false);
     }
   }
@@ -62,28 +93,69 @@ export default function LoginForm() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Suspense fallback={null}><MessageBanner /></Suspense>
-              {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+              <Suspense fallback={null}>
+                <MessageBanner />
+              </Suspense>
+              {error && (
+                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
+                  {error}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
-                <Input id="password" type="password" placeholder="Your password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="Your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</> : "Sign in"}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign in"
+                )}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="justify-center">
             <p className="text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
-              <Link href="/register" className="text-primary hover:underline font-medium">Sign up</Link>
+              <Link
+                href="/register"
+                className="text-primary hover:underline font-medium"
+              >
+                Sign up
+              </Link>
             </p>
           </CardFooter>
         </Card>

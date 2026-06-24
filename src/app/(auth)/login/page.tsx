@@ -1,10 +1,7 @@
-// FIXED: src/app/(auth)/login/page.tsx
-// Bug 1: useSearchParams inside Suspense was causing hydration re-renders that wiped state
-// Bug 2: "missing email or phone" — email state was being read as empty on submit
-// Fix: move state outside Suspense, use a ref for submit to avoid stale closure
-
+// FIXED v3: src/app/(auth)/login/page.tsx
+// Use uncontrolled inputs + e.currentTarget to read values on submit
 "use client";
-import { useState, useRef, Suspense } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -23,24 +20,16 @@ function MessageBanner() {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Use refs to avoid stale closure in async handler
-  const emailRef = useRef(email);
-  const passwordRef = useRef(password);
-  emailRef.current = email;
-  passwordRef.current = password;
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // Read from refs to guarantee latest value
-    const emailVal = emailRef.current.trim();
-    const passwordVal = passwordRef.current;
+    const form = e.currentTarget;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value.trim();
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
-    if (!emailVal || !passwordVal) {
+    if (!email || !password) {
       setError("Please enter your email and password.");
       return;
     }
@@ -49,10 +38,7 @@ export default function LoginPage() {
     setError("");
 
     const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email: emailVal,
-      password: passwordVal,
-    });
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
       const msg = authError.message;
@@ -60,8 +46,8 @@ export default function LoginPage() {
         setError("Incorrect email or password. Please try again.");
       } else if (msg.includes("Email not confirmed")) {
         setError("Please verify your email before signing in.");
-      } else if (msg.includes("Too many requests")) {
-        setError("Too many attempts. Please wait a few minutes and try again.");
+      } else if (msg.includes("Too many")) {
+        setError("Too many attempts. Please wait a few minutes.");
       } else {
         setError(msg);
       }
@@ -70,15 +56,8 @@ export default function LoginPage() {
     }
 
     if (data.session) {
-      const { data: businesses } = await supabase
-        .from("businesses")
-        .select("id")
-        .eq("owner_id", data.session.user.id)
-        .limit(1);
-
-      // Always go to dashboard — dashboard handles no-business state with checklist
       router.refresh();
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 150));
       router.push("/dashboard");
     } else {
       setError("Sign in failed — no session returned. Please try again.");
@@ -100,46 +79,23 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Suspense only wraps the banner — not the form, preventing re-renders */}
-              <Suspense fallback={null}>
-                <MessageBanner />
-              </Suspense>
+              <Suspense fallback={null}><MessageBanner /></Suspense>
               {error && (
                 <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
+                <Input id="email" name="email" type="email" placeholder="you@example.com" required autoComplete="email" />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">
-                    Forgot password?
-                  </Link>
+                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Your password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
+                <Input id="password" name="password" type="password" placeholder="Your password" required autoComplete="current-password" />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading
-                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</>
-                  : "Sign in"}
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</> : "Sign in"}
               </Button>
             </form>
           </CardContent>

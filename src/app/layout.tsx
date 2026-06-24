@@ -3,17 +3,23 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Brandfledger — Smart Accounting for Small Businesses",
-  description: "Manage invoices, expenses, customers and reports in one place.",
+  title: { default: "Brandfledger", template: "%s | Brandfledger" },
+  description: "The financial operating system for small businesses. Invoices, expenses, payments, and reports — all in one place.",
+  keywords: ["invoicing", "accounting", "small business", "expenses", "payments"],
+  openGraph: {
+    title: "Brandfledger",
+    description: "Run your business finances from one clean dashboard.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans antialiased`}>
         {children}
         <Toaster />
       </body>

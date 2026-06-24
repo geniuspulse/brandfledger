@@ -1,4 +1,3 @@
-// src/app/(auth)/login/_login-form.tsx
 "use client";
 import { useState, Suspense } from "react";
 import Link from "next/link";
@@ -7,22 +6,15 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Zap, Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, Info } from "lucide-react";
 
 function MessageBanner() {
   const searchParams = useSearchParams();
   const message = searchParams.get("message");
   if (!message) return null;
   return (
-    <div className="rounded-md bg-primary/10 p-3 text-sm text-primary border border-primary/20">
+    <div className="flex items-center gap-2 rounded-md bg-primary/10 p-3 text-sm text-primary border border-primary/20">
+      <Info className="h-4 w-4 shrink-0" />
       {message}
     </div>
   );
@@ -35,131 +27,52 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const form = e.currentTarget;
-    const emailVal = (form.elements.namedItem("email") as HTMLInputElement).value.trim();
-    const passVal = (form.elements.namedItem("password") as HTMLInputElement).value;
-
-    if (!emailVal || !passVal) {
-      setError("Please enter your email and password.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
+    if (!email || !password) { setError("Please fill in all fields."); return; }
+    setLoading(true); setError("");
     const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email: emailVal,
-      password: passVal,
-    });
-
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (authError) {
-      const msg = authError.message;
-      if (msg.includes("Invalid login credentials")) {
-        setError("Incorrect email or password.");
-      } else if (msg.includes("Email not confirmed")) {
-        setError("Please verify your email first — check your inbox.");
-      } else if (msg.includes("Too many")) {
-        setError("Too many attempts. Wait a few minutes and try again.");
-      } else {
-        setError(msg);
-      }
-      setLoading(false);
-      return;
+      setError(authError.message.includes("Invalid login") ? "Incorrect email or password." : authError.message);
+      setLoading(false); return;
     }
-
-    if (data.session) {
-      router.refresh();
-      router.push("/dashboard");
-    } else {
-      setError("Sign in failed — please try again.");
-      setLoading(false);
-    }
+    if (data.session) { router.refresh(); router.push("/dashboard"); }
+    else { setError("Sign in failed — please try again."); setLoading(false); }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex justify-center items-center gap-2">
-          <Zap className="h-8 w-8 text-primary" />
-          <span className="text-2xl font-bold">Brandfledger</span>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Sign in to your account to continue</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Suspense fallback={null}>
-                <MessageBanner />
-              </Suspense>
-              {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
-                  {error}
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-          <CardFooter className="justify-center">
-            <p className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="text-primary hover:underline font-medium"
-              >
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
-        </Card>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Sign in to your Brandfledger account</p>
       </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Suspense fallback={null}><MessageBanner /></Suspense>
+        {error && (
+          <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
+            <AlertCircle className="h-4 w-4 shrink-0" />{error}
+          </div>
+        )}
+        <div className="space-y-2">
+          <Label htmlFor="email">Email address</Label>
+          <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
+          </div>
+          <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" required />
+        </div>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</> : "Sign in"}
+        </Button>
+      </form>
+      <p className="text-center text-sm text-muted-foreground">
+        Don&apos;t have an account?{" "}
+        <Link href="/register" className="text-primary hover:underline font-medium">Create one free</Link>
+      </p>
     </div>
   );
 }

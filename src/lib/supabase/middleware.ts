@@ -1,8 +1,4 @@
-// UPDATED: src/lib/supabase/middleware.ts
-// Removed /onboarding from protected paths (page no longer exists as a route)
-// Kept /team and /subscription as protected
-
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
@@ -13,9 +9,14 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll(); },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        getAll() {
+          return request.cookies.getAll();
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -25,10 +26,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  // Refresh session
+  await supabase.auth.getUser();
+
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  // Always let these through
   if (pathname.startsWith("/auth/") || pathname.startsWith("/api/")) {
     return supabaseResponse;
   }
@@ -38,7 +41,10 @@ export async function updateSession(request: NextRequest) {
     "/payments", "/expenses", "/reports", "/settings",
     "/team", "/subscription",
   ];
-  const isProtected = protectedPaths.some(p => pathname === p || pathname.startsWith(p + "/"));
+
+  const isProtected = protectedPaths.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
 
   if (!user && isProtected) {
     return NextResponse.redirect(new URL("/login", request.url));

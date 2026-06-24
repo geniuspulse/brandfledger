@@ -1,5 +1,7 @@
+// FIXED v3: src/app/(auth)/register/page.tsx
+// Use uncontrolled inputs + FormData to avoid React state/DOM sync issues
 "use client";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -11,43 +13,34 @@ import { Zap, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Refs so the async handler always reads the latest values
-  const fullNameRef = useRef(fullName);
-  const emailRef = useRef(email);
-  const passwordRef = useRef(password);
-  fullNameRef.current = fullName;
-  emailRef.current = email;
-  passwordRef.current = password;
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const nameVal = fullNameRef.current.trim();
-    const emailVal = emailRef.current.trim().toLowerCase();
-    const passVal = passwordRef.current;
+    const form = e.currentTarget;
+    const fullName = (form.elements.namedItem("fullName") as HTMLInputElement).value.trim();
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value.trim().toLowerCase();
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
-    if (!nameVal || !emailVal || !passVal) {
+    if (!fullName || !email || !password) {
       setError("Please fill in all fields.");
       return;
     }
-    if (passVal.length < 6) {
+    if (password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
+
     setLoading(true);
     setError("");
 
     const supabase = createClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email: emailVal,
-      password: passVal,
+      email,
+      password,
       options: {
-        data: { full_name: nameVal },
+        data: { full_name: fullName },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
@@ -59,13 +52,11 @@ export default function RegisterPage() {
     }
 
     if (data.session) {
-      // Auto-confirm on — go straight to dashboard
       router.refresh();
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 150));
       router.push("/dashboard");
     } else {
-      // Email confirmation required
-      setError("Account created! Check your email to verify, then sign in.");
+      setError("Account created! Check your email to verify your address, then sign in.");
       setLoading(false);
     }
   }
@@ -95,44 +86,18 @@ export default function RegisterPage() {
               )}
               <div className="space-y-2">
                 <Label htmlFor="fullName">Full name</Label>
-                <Input
-                  id="fullName"
-                  placeholder="John Doe"
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  required
-                  autoComplete="name"
-                />
+                <Input id="fullName" name="fullName" placeholder="John Doe" required autoComplete="name" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
+                <Input id="email" name="email" type="email" placeholder="you@example.com" required autoComplete="email" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="At least 6 characters"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  minLength={6}
-                />
+                <Input id="password" name="password" type="password" placeholder="At least 6 characters" required autoComplete="new-password" minLength={6} />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading
-                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</>
-                  : "Create account"}
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating account...</> : "Create account"}
               </Button>
             </form>
           </CardContent>

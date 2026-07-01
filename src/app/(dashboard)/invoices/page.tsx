@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getDefaultBusiness } from "@/lib/default-business";
@@ -27,7 +27,7 @@ const BLANK_FORM = {
   items: [{ name: "", description: "", quantity: 1, unit_price: 0, total: 0 }] as InvoiceItem[],
 };
 
-export default function InvoicesPage() {
+function InvoicesPageInner() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -381,5 +381,20 @@ export default function InvoicesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function InvoicesPage() {
+  return (
+    <Suspense fallback={
+      <div>
+        <Header title="Invoices" description="Create and manage invoices" />
+        <div className="p-6 flex items-center justify-center py-32">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    }>
+      <InvoicesPageInner />
+    </Suspense>
   );
 }

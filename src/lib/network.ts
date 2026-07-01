@@ -28,9 +28,12 @@ export const CONNECTION_ERROR_MESSAGE =
  * background (every `intervalMs`, and immediately when the browser regains
  * connectivity) until it succeeds or fails with a *real* error.
  * Returns only once the action has truly succeeded or truly failed.
+ *
+ * `action` accepts anything "thenable" (PromiseLike) so it works directly
+ * with Supabase query builders, which aren't strict Promises.
  */
 export async function retryUntilOnline<E extends { message?: string; name?: string }>(
-  action: () => Promise<{ error: E | null }>,
+  action: () => PromiseLike<{ error: E | null }>,
   opts: { intervalMs?: number; onRetrying?: (retrying: boolean) => void } = {}
 ): Promise<{ error: E | null }> {
   const { intervalMs = 4000, onRetrying } = opts;

@@ -41,7 +41,7 @@ export default function TeamPage() {
 
   return (
     <div>
-      <Header title="Team" description="Manage team members and permissions"
+      <Header title="Team" description="Manage team members and permissions" icon={Users}
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

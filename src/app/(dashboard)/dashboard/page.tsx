@@ -1,19 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { getDefaultBusiness } from "@/lib/default-business";
 import DashboardClient from "./dashboard-client";
 
 export const metadata = { title: "Dashboard" };
 
+// TEMPORARY: auth removed while it's being rebuilt from scratch.
+// This page now operates on a single shared "default" business.
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
-  const { data: business } = await supabase
-    .from("businesses")
-    .select("*")
-    .eq("owner_id", user.id)
-    .single();
+  const { data: business } = await getDefaultBusiness(supabase);
 
   if (!business) {
     return <DashboardClient business={null} stats={null} setupStatus={{ hasBusiness: false, hasCustomer: false, hasProduct: false, hasInvoice: false }} />;

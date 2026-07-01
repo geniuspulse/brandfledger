@@ -6,27 +6,51 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, WifiOff } from "lucide-react";
+import { isNetworkError, sleep, CONNECTION_ERROR_MESSAGE } from "@/lib/network";
 
 export default function RegisterForm() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
+  const [wasNetworkError, setWasNetworkError] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.name || !form.email || !form.password) { setError("Please fill in all fields."); return; }
-    if (form.password.length < 8) { setError("Password must be at least 8 characters."); return; }
-    if (form.password !== form.confirm) { setError("Passwords do not match."); return; }
-    setLoading(true); setError("");
+  async function attemptSignUp() {
     const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signUp({
+    return supabase.auth.signUp({
       email: form.email.trim(),
       password: form.password,
       options: { data: { full_name: form.name } },
     });
-    if (authError) { setError(authError.message); setLoading(false); return; }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name || !form.email || !form.password) { setError("Please fill in all fields."); setWasNetworkError(false); return; }
+    if (form.password.length < 8) { setError("Password must be at least 8 characters."); setWasNetworkError(false); return; }
+    if (form.password !== form.confirm) { setError("Passwords do not match."); setWasNetworkError(false); return; }
+    setLoading(true); setError(""); setWasNetworkError(false);
+
+    let { data, error: authError } = await attemptSignUp();
+
+    // Flaky mobile connections drop the request before it reaches the server —
+    // retry once automatically before bothering the user with an error.
+    if (authError && isNetworkError(authError)) {
+      await sleep(1200);
+      ({ data, error: authError } = await attemptSignUp());
+    }
+
+    if (authError) {
+      if (isNetworkError(authError)) {
+        setError(CONNECTION_ERROR_MESSAGE);
+        setWasNetworkError(true);
+      } else {
+        setError(authError.message);
+      }
+      setLoading(false);
+      return;
+    }
 
     // Email confirmation is disabled, so signUp returns an active session immediately.
     if (data.session) {
@@ -49,7 +73,13 @@ export default function RegisterForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
-            <AlertCircle className="h-4 w-4 shrink-0" />{error}
+            {wasNetworkError ? <WifiOff className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+            <span className="flex-1">{error}</span>
+            {wasNetworkError && (
+              <button type="submit" className="text-xs font-semibold underline shrink-0" disabled={loading}>
+                Retry
+              </button>
+            )}
           </div>
         )}
         <div className="space-y-2">

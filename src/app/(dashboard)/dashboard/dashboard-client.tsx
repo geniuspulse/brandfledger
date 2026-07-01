@@ -21,6 +21,13 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 
 const currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "MWK", "ZAR", "NGN", "KES", "GHS"];
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 interface SetupStatus { hasBusiness: boolean; hasCustomer: boolean; hasProduct: boolean; hasInvoice: boolean; }
 
 interface Props {
@@ -236,8 +243,11 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
       <div className="relative border-b bg-gradient-to-r from-primary/5 via-card to-card px-6 py-5 md:pl-6 pl-16">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dashboard</p>
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">Welcome back, {business.name} 👋</h1>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{business.name}</p>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-0.5" suppressHydrationWarning>
+              {getGreeting()}, here&apos;s an overview of your account
+            </p>
           </div>
           <Link href="/reports" className="shrink-0">
             <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" aria-label="Reports">

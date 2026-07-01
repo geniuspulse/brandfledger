@@ -32,10 +32,15 @@ export default function CustomersPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setPageLoading(false); return; }
-    const { data: biz } = await supabase.from("businesses").select("*").eq("owner_id", user.id).single();
+    const { data: biz, error: bizError } = await supabase.from("businesses").select("*").eq("owner_id", user.id).single();
+    if (bizError && bizError.code !== "PGRST116") {
+      toast({ title: "Couldn't load business", description: bizError.message, variant: "destructive" });
+      setPageLoading(false); return;
+    }
     if (!biz) { setPageLoading(false); return; }
     setBusiness(biz);
-    const { data } = await supabase.from("customers").select("*").eq("business_id", biz.id).order("name");
+    const { data, error } = await supabase.from("customers").select("*").eq("business_id", biz.id).order("name");
+    if (error) toast({ title: "Couldn't load customers", description: error.message, variant: "destructive" });
     setCustomers(data ?? []);
     setPageLoading(false);
   }

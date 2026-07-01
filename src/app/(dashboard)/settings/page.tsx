@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getDefaultBusiness } from "@/lib/default-business";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,11 +27,8 @@ export default function SettingsPage() {
 
   async function load() {
     const sb = createClient();
-    const { data: { user } } = await sb.auth.getUser();
-    if (!user) return;
-    setProfile({ full_name: user.user_metadata?.full_name ?? "", email: user.email ?? "" });
-    const { data: biz, error } = await sb.from("businesses").select("*").eq("owner_id", user.id).single();
-    if (error && error.code !== "PGRST116") {
+    const { data: biz, error } = await getDefaultBusiness(sb);
+    if (error) {
       toast({ title: "Couldn't load business settings", description: error.message, variant: "destructive" });
       return;
     }
@@ -47,25 +45,7 @@ export default function SettingsPage() {
     setLoading(false);
   }
 
-  async function saveProfile() {
-    setLoading(true);
-    const sb = createClient();
-    const { error } = await sb.auth.updateUser({ data: { full_name: profile.full_name } });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else toast({ title: "Profile updated" });
-    setLoading(false);
-  }
 
-  async function changePassword() {
-    if (passwords.newPass !== passwords.confirm) { toast({ title: "Passwords do not match", variant: "destructive" }); return; }
-    if (passwords.newPass.length < 8) { toast({ title: "Password too short", description: "Minimum 8 characters", variant: "destructive" }); return; }
-    setPwLoading(true);
-    const sb = createClient();
-    const { error } = await sb.auth.updateUser({ password: passwords.newPass });
-    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: "Password changed" }); setPasswords({ current: "", newPass: "", confirm: "" }); }
-    setPwLoading(false);
-  }
 
   return (
     <div>

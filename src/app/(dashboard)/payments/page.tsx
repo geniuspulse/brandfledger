@@ -114,7 +114,7 @@ export default function PaymentsPage() {
 
   if (pageLoading) return (
     <div>
-      <Header title="Payments" description="Record and track payments received" />
+      <Header title="Payments" description="Record and track payments received" icon={CreditCard} />
       <div className="p-6 flex items-center justify-center py-32">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>

@@ -90,19 +90,19 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
   ];
 
   return (
-    <Card className="border-primary/20 bg-primary/5">
+    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent shadow-sm">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <CardTitle className="text-base">Get started</CardTitle>
             <CardDescription>{completedCount} of 4 steps complete</CardDescription>
           </div>
-          <Progress value={(completedCount / 4) * 100} className="w-24 h-2" />
+          <Progress value={(completedCount / 4) * 100} className="w-24 h-2 shrink-0" />
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {steps.map((step) => (
-          <div key={step.id} className={`rounded-lg border bg-card overflow-hidden ${step.done ? "opacity-60" : ""}`}>
+          <div key={step.id} className={`rounded-lg border bg-card overflow-hidden transition-opacity ${step.done ? "opacity-60" : "shadow-sm"}`}>
             <button
               className="flex w-full items-center gap-3 p-4 text-left"
               onClick={() => !step.done && !step.href && setExpanded(expanded === step.id ? null : step.id)}

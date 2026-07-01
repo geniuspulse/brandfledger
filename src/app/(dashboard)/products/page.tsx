@@ -92,7 +92,7 @@ export default function ProductsPage() {
 
   if (pageLoading) return (
     <div>
-      <Header title="Products & Services" description="Your product and service catalog" />
+      <Header title="Products & Services" description="Your product and service catalog" icon={Package} />
       <div className="p-6 flex items-center justify-center py-32">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>

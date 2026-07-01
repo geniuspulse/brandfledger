@@ -149,6 +149,7 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
             )}
             {!step.done && expanded === step.id && step.id === "product" && (
               <div className="px-4 pb-4 space-y-3 border-t pt-3">
+                {error && <p className="text-xs text-destructive">{error}</p>}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1"><Label className="text-xs">Name *</Label><Input className="h-8 text-sm" placeholder="Web design" value={prodForm.name} onChange={e => setProdForm(p => ({ ...p, name: e.target.value }))} /></div>
                   <div className="space-y-1"><Label className="text-xs">Price</Label><Input className="h-8 text-sm" type="number" value={prodForm.price} onChange={e => setProdForm(p => ({ ...p, price: e.target.value }))} /></div>
@@ -156,14 +157,17 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" disabled={loading || !prodForm.name} onClick={async () => {
-                    setLoading(true);
+                    setLoading(true); setError("");
                     const sb = createClient();
                     const { data: { user } } = await sb.auth.getUser();
-                    const { data: biz } = await sb.from("businesses").select("id").eq("owner_id", user!.id).single();
-                    await sb.from("products").insert({ name: prodForm.name, price: parseFloat(prodForm.price) || 0, category: prodForm.category, business_id: biz!.id });
+                    if (!user) { setError("Not signed in"); setLoading(false); return; }
+                    const { data: biz, error: bizErr } = await sb.from("businesses").select("id").eq("owner_id", user.id).single();
+                    if (bizErr || !biz) { setError(bizErr?.message ?? "Business not found"); setLoading(false); return; }
+                    const { error: prodErr } = await sb.from("products").insert({ name: prodForm.name, price: parseFloat(prodForm.price) || 0, category: prodForm.category, business_id: biz.id });
+                    if (prodErr) { setError(prodErr.message); setLoading(false); return; }
                     setStatus(s => ({ ...s, hasProduct: true })); setExpanded(null); setLoading(false);
                   }}>{loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}Add product</Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setStatus(s => ({ ...s, hasProduct: true })); setExpanded(null); }}>Skip</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setError(""); setStatus(s => ({ ...s, hasProduct: true })); setExpanded(null); }}>Skip</Button>
                 </div>
               </div>
             )}

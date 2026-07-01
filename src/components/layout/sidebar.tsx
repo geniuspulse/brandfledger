@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,10 +27,14 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
+    setSigningOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
+    // refresh() clears the server-side session cache before redirecting
+    router.refresh();
     router.push("/login");
   }
 
@@ -66,6 +69,7 @@ export function Sidebar() {
       <button
         className="fixed top-4 left-4 z-50 md:hidden p-2 rounded-lg bg-card border shadow-sm"
         onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label="Toggle menu"
       >
         {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
@@ -100,10 +104,11 @@ export function Sidebar() {
         <div className="p-3 border-t shrink-0">
           <button
             onClick={handleSignOut}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            disabled={signingOut}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            Sign out
+            {signingOut ? "Signing out..." : "Sign out"}
           </button>
         </div>
       </aside>

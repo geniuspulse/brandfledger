@@ -383,68 +383,44 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Recent invoices */}
-          <Card className="lg:col-span-2 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Recent Invoices</CardTitle>
-              <Link href="/invoices" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
-            </CardHeader>
-            <CardContent>
-              {recentInvoices.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                    <FileText className="h-6 w-6 text-primary" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">No invoices yet</p>
-                  <Link href="/invoices?new=1" className="mt-3"><Button size="sm" variant="outline">Create your first invoice</Button></Link>
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base">Recent Invoices</CardTitle>
+            <Link href="/invoices" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
+          </CardHeader>
+          <CardContent>
+            {recentInvoices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                  <FileText className="h-6 w-6 text-primary" />
                 </div>
-              ) : (
-                <div className="-mx-2">
-                  {recentInvoices.map(inv => (
-                    <Link
-                      key={inv.id}
-                      href="/invoices"
-                      className="flex items-center justify-between gap-3 rounded-lg px-2 py-3 border-b last:border-0 hover:bg-muted/60 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`h-2 w-2 rounded-full shrink-0 ${statusDot[inv.status] ?? "bg-muted-foreground/40"}`} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">#{inv.invoice_number}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{inv.status} · {formatDate(inv.created_at)}</p>
-                        </div>
+                <p className="text-sm text-muted-foreground">No invoices yet</p>
+                <Link href="/invoices?new=1" className="mt-3"><Button size="sm" variant="outline">Create your first invoice</Button></Link>
+              </div>
+            ) : (
+              <div className="-mx-2">
+                {recentInvoices.map(inv => (
+                  <Link
+                    key={inv.id}
+                    href="/invoices"
+                    className="flex items-center justify-between gap-3 rounded-lg px-2 py-3 border-b last:border-0 hover:bg-muted/60 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${statusDot[inv.status] ?? "bg-muted-foreground/40"}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">#{inv.invoice_number}</p>
+                        <p className="text-xs text-muted-foreground capitalize">{inv.status} · {formatDate(inv.created_at)}</p>
                       </div>
-                      <span className={`text-sm font-semibold px-2.5 py-1 rounded-full shrink-0 ${amountPill[inv.status] ?? "bg-muted text-muted-foreground"}`}>
-                        {inv.status === "paid" ? "+" : ""}{fmt(inv.total)}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick links */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-base">Quick Actions</CardTitle></CardHeader>
-            <CardContent className="space-y-1.5">
-              {[
-                { href: "/invoices?new=1", label: "New Invoice", icon: FileText, tone: "primary" as const },
-                { href: "/customers", label: "Add Customer", icon: Users, tone: "emerald" as const },
-                { href: "/expenses", label: "Log Expense", icon: TrendingDown, tone: "rose" as const },
-                { href: "/reports", label: "View Reports", icon: BarChart3, tone: "amber" as const },
-              ].map(({ href, label, icon: Icon, tone }) => (
-                <Link key={href} href={href} className="group flex items-center gap-3 rounded-lg p-3 hover:bg-muted transition-colors">
-                  <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${statTones[tone].bg}`}>
-                    <Icon className={`h-4 w-4 ${statTones[tone].icon}`} />
-                  </div>
-                  <span className="text-sm font-medium">{label}</span>
-                  <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+                    </div>
+                    <span className={`text-sm font-semibold px-2.5 py-1 rounded-full shrink-0 ${amountPill[inv.status] ?? "bg-muted text-muted-foreground"}`}>
+                      {inv.status === "paid" ? "+" : ""}{fmt(inv.total)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Link

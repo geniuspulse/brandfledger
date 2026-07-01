@@ -46,7 +46,7 @@ const plans = [
 export default function SubscriptionPage() {
   return (
     <div>
-      <Header title="Subscription" description="Manage your plan and billing" />
+      <Header title="Subscription" description="Manage your plan and billing" icon={Zap} />
       <div className="p-6 space-y-6">
         <div className="rounded-lg border bg-primary/5 border-primary/20 p-4 flex items-center justify-between">
           <div>

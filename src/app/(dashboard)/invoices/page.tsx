@@ -274,27 +274,32 @@ function InvoicesPageInner() {
                   </div>
                   <div className="space-y-2">
                     {form.items.map((item, idx) => (
-                      <div key={idx} className="grid grid-cols-12 gap-2 items-start border rounded-lg p-2">
-                        <div className="col-span-4 space-y-1">
-                          <Select onValueChange={v => applyProduct(idx, v)}>
-                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pick product" /></SelectTrigger>
-                            <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                          </Select>
-                          <Input className="h-8 text-xs" placeholder="Item name *" value={item.name} onChange={e => updateItem(idx, "name", e.target.value)} />
-                        </div>
-                        <div className="col-span-2">
-                          <Input className="h-8 text-xs" type="number" min="1" placeholder="Qty" value={item.quantity} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value) || 1)} />
-                        </div>
-                        <div className="col-span-3">
-                          <Input className="h-8 text-xs" type="number" min="0" step="0.01" placeholder="Unit price" value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
-                        </div>
-                        <div className="col-span-2 flex items-center h-8">
-                          <span className="text-xs font-medium">{formatCurrency(item.total, business?.currency)}</span>
-                        </div>
-                        <div className="col-span-1 flex items-center h-8">
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(idx)} disabled={form.items.length === 1}>
-                            <Trash2 className="h-3 w-3 text-destructive" />
+                      <div key={idx} className="space-y-2 border rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 space-y-2">
+                            <Select onValueChange={v => applyProduct(idx, v)}>
+                              <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Pick a product (optional)" /></SelectTrigger>
+                              <SelectContent>{products.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <Input className="h-9 text-sm" placeholder="Item name *" value={item.name} onChange={e => updateItem(idx, "name", e.target.value)} />
+                          </div>
+                          <Button type="button" variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => removeItem(idx)} disabled={form.items.length === 1}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Qty</Label>
+                            <Input className="h-9 text-sm" type="number" min="1" value={item.quantity} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value) || 1)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Unit price</Label>
+                            <Input className="h-9 text-sm" type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Total</Label>
+                            <div className="h-9 flex items-center text-sm font-semibold">{formatCurrency(item.total, business?.currency)}</div>
+                          </div>
                         </div>
                       </div>
                     ))}

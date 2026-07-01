@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, Users, Crown } from "lucide-react";
+import { UserPlus, Users, Crown, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TeamPage() {
@@ -19,16 +19,20 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [role, setRole] = useState("member");
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => { loadMembers(); }, []);
 
   async function loadMembers() {
+    setPageLoading(true);
     const sb = createClient();
     const { data: { user } } = await sb.auth.getUser();
-    const { data: biz } = await sb.from("businesses").select("id").eq("owner_id", user!.id).single();
-    if (!biz) return;
+    if (!user) { setPageLoading(false); return; }
+    const { data: biz } = await sb.from("businesses").select("id").eq("owner_id", user.id).single();
+    if (!biz) { setPageLoading(false); return; }
     const { data } = await sb.from("business_members").select("*").eq("business_id", biz.id);
     setMembers(data ?? []);
+    setPageLoading(false);
   }
 
   return (
@@ -61,34 +65,45 @@ export default function TeamPage() {
         }
       />
       <div className="p-6 space-y-4">
-        <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />Team members</CardTitle><CardDescription>{members.length} member{members.length !== 1 ? "s" : ""}</CardDescription></CardHeader>
-          <CardContent>
-            {members.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No team members yet. Invite someone to collaborate.</p>
-            ) : (
-              <div className="space-y-3">
-                {members.map(m => (
-                  <div key={m.id} className="flex items-center justify-between py-3 border-b last:border-0">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-                        {m.role === "owner" ? <Crown className="h-4 w-4" /> : m.user_id.slice(0, 2).toUpperCase()}
+        {pageLoading ? (
+          <div className="flex items-center justify-center py-32">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />Team members</CardTitle>
+                <CardDescription>{members.length} member{members.length !== 1 ? "s" : ""}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {members.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No team members yet. Invite someone to collaborate.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {members.map(m => (
+                      <div key={m.id} className="flex items-center justify-between py-3 border-b last:border-0">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
+                            {m.role === "owner" ? <Crown className="h-4 w-4" /> : m.user_id.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{m.user_id.slice(0, 8)}...</p>
+                            <p className="text-xs text-muted-foreground capitalize">{m.role}</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="capitalize">{m.role}</Badge>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">{m.user_id.slice(0, 8)}...</p>
-                        <p className="text-xs text-muted-foreground capitalize">{m.role}</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="capitalize">{m.role}</Badge>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
-          <strong className="text-foreground">Upgrade to Starter</strong> to invite team members and set custom role permissions.
-        </div>
+                )}
+              </CardContent>
+            </Card>
+            <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+              <strong className="text-foreground">Upgrade to Starter</strong> to invite team members and set custom role permissions.
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

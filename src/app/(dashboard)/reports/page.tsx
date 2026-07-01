@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getDefaultBusiness } from "@/lib/default-business";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,10 +30,8 @@ export default function ReportsPage() {
   async function loadData() {
     setPageLoading(true);
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setPageLoading(false); return; }
-    const { data: biz, error: bizError } = await supabase.from("businesses").select("*").eq("owner_id", user.id).single();
-    if (bizError && bizError.code !== "PGRST116") {
+    const { data: biz, error: bizError } = await getDefaultBusiness(supabase);
+    if (bizError) {
       toast({ title: "Couldn't load business", description: bizError.message, variant: "destructive" });
       setPageLoading(false); return;
     }

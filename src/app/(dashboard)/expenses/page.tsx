@@ -103,7 +103,7 @@ export default function ExpensesPage() {
 
   if (pageLoading) return (
     <div>
-      <Header title="Expenses" description="Track your business expenses" />
+      <Header title="Expenses" description="Track your business expenses" icon={Receipt} />
       <div className="p-6 flex items-center justify-center py-32">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>

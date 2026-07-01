@@ -172,15 +172,15 @@ export default function LandingClient() {
     startX.current = null;
   }
 
-  // Keyboard nav
+  // Keyboard nav — setCurrent with updater fn avoids stale closure
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight") goTo(current + 1);
-      if (e.key === "ArrowLeft") goTo(current - 1);
+      if (e.key === "ArrowRight") setCurrent(c => Math.min(c + 1, slides.length - 1));
+      if (e.key === "ArrowLeft") setCurrent(c => Math.max(c - 1, 0));
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current]);
+  }, []);
 
   const slideComponents = [<SlideHero key="hero" />, <SlideFeatures key="features" />, <SlideCTA key="cta" />];
 

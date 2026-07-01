@@ -6,8 +6,9 @@ import {
   DollarSign, TrendingUp, TrendingDown, Clock, Users, FileText,
   CheckCircle2, Circle, Building2, UserPlus, Package, Zap,
   ChevronDown, ChevronUp, Loader2, ArrowRight, AlertCircle,
-  BarChart3, Plus,
+  BarChart3, Plus, Download, Bell,
 } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ interface Props {
   business: { name: string; currency: string; id?: string } | null;
   stats: { revenue: number; expenses: number; profit: number; outstandingAmount: number; outstandingCount: number; customerCount: number; } | null;
   recentInvoices?: { id: string; total: number; status: string; created_at: string; invoice_number: string }[];
+  monthlyTrend?: { month: string; revenue: number; expenses: number }[];
+  topCustomers?: { name: string; total: number; invoiceCount: number }[];
   setupStatus: SetupStatus;
 }
 
@@ -41,6 +44,14 @@ const statusDot: Record<string, string> = {
   sent: "bg-blue-500",
   paid: "bg-emerald-500",
   overdue: "bg-rose-500",
+};
+
+// Colored pill for an invoice's amount, echoing how transaction feeds show +/- amounts
+const amountPill: Record<string, string> = {
+  draft: "bg-muted text-muted-foreground",
+  sent: "bg-blue-100 text-blue-700",
+  paid: "bg-emerald-100 text-emerald-700",
+  overdue: "bg-rose-100 text-rose-700",
 };
 
 const statTones = {
@@ -203,7 +214,7 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
   );
 }
 
-export default function DashboardClient({ business, stats, recentInvoices = [], setupStatus }: Props) {
+export default function DashboardClient({ business, stats, recentInvoices = [], monthlyTrend = [], topCustomers = [], setupStatus }: Props) {
   if (!business || !stats) {
     return (
       <div>
@@ -218,22 +229,37 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
   }
 
   const fmt = (v: number) => formatCurrency(v, business.currency);
+  const hasTrendData = monthlyTrend.some(m => m.revenue > 0 || m.expenses > 0);
 
   return (
     <div className="relative min-h-full">
-      <div className="relative border-b bg-gradient-to-r from-primary/5 via-card to-card px-6 py-5 md:pl-6 pl-16 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">{business.name}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5" suppressHydrationWarning>
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · Financial overview
-          </p>
+      <div className="relative border-b bg-gradient-to-r from-primary/5 via-card to-card px-6 py-5 md:pl-6 pl-16">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Dashboard</p>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">Welcome back, {business.name} 👋</h1>
+          </div>
+          <Link href="/reports" className="shrink-0">
+            <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" aria-label="Reports">
+              <BarChart3 className="h-5 w-5" />
+            </Button>
+          </Link>
         </div>
-        <Link href="/reports" className="shrink-0">
-          <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" aria-label="Reports">
-            <BarChart3 className="h-5 w-5" />
-          </Button>
-        </Link>
+
+        {/* Quick action pills */}
+        <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1 -mx-1 px-1">
+          <Link href="/invoices?new=1" className="shrink-0">
+            <Button size="sm" className="rounded-full"><Plus className="h-3.5 w-3.5 mr-1.5" />New Invoice</Button>
+          </Link>
+          <Link href="/customers" className="shrink-0">
+            <Button size="sm" variant="outline" className="rounded-full bg-card"><UserPlus className="h-3.5 w-3.5 mr-1.5" />Add Customer</Button>
+          </Link>
+          <Link href="/reports" className="shrink-0">
+            <Button size="sm" variant="outline" className="rounded-full bg-card"><Download className="h-3.5 w-3.5 mr-1.5" />Export Report</Button>
+          </Link>
+        </div>
       </div>
+
       <div className="p-6 space-y-6">
         {/* Setup checklist if not complete */}
         {(!setupStatus.hasCustomer || !setupStatus.hasProduct || !setupStatus.hasInvoice) && (
@@ -246,6 +272,107 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
           <StatCard label="Total Expenses" value={fmt(stats.expenses)} icon={TrendingDown} tone="rose" />
           <StatCard label="Net Profit" value={fmt(stats.profit)} icon={DollarSign} tone={stats.profit >= 0 ? "emerald" : "rose"} />
           <StatCard label="Outstanding" value={fmt(stats.outstandingAmount)} sub={`${stats.outstandingCount} invoice${stats.outstandingCount !== 1 ? "s" : ""}`} icon={Clock} tone="amber" />
+        </div>
+
+        {/* Outstanding reminder — only shown when it's actually relevant */}
+        {stats.outstandingCount > 0 && (
+          <Card className="border-amber-200 bg-amber-50/60 dark:bg-amber-500/5 dark:border-amber-500/20 shadow-sm">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center shrink-0">
+                <Bell className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">
+                  {stats.outstandingCount} invoice{stats.outstandingCount !== 1 ? "s" : ""} awaiting payment
+                </p>
+                <p className="text-xs text-muted-foreground">{fmt(stats.outstandingAmount)} outstanding — follow up to get paid faster</p>
+              </div>
+              <Link href="/invoices" className="shrink-0">
+                <Button size="sm" variant="outline" className="bg-card">View</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Monthly trend chart */}
+          <Card className="lg:col-span-2 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div>
+                <CardTitle className="text-base">Monthly Trend</CardTitle>
+                <CardDescription className="text-xs mt-0.5">Revenue vs expenses, last 6 months</CardDescription>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" />Revenue</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-400" />Expenses</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {hasTrendData ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={monthlyTrend} margin={{ left: -20, right: 8 }}>
+                    <defs>
+                      <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="expensesFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#fb7185" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#fb7185" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-40" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} width={0} />
+                    <Tooltip formatter={(v: number) => fmt(v)} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                    <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#6366f1" strokeWidth={2} fill="url(#revenueFill)" />
+                    <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#fb7185" strokeWidth={2} fill="url(#expensesFill)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                    <BarChart3 className="h-6 w-6 text-primary" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">Not enough data yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Your trend will fill in as invoices and expenses come in</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top customers */}
+          <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base">Top Customers</CardTitle>
+              <Link href="/customers" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-3 w-3" /></Link>
+            </CardHeader>
+            <CardContent>
+              {topCustomers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                    <Users className="h-6 w-6 text-primary" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No billed customers yet</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {topCustomers.map((c) => (
+                    <div key={c.name} className="flex items-center gap-3 py-2.5 border-b last:border-0">
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                        {c.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">{c.invoiceCount} invoice{c.invoiceCount !== 1 ? "s" : ""}</p>
+                      </div>
+                      <span className="text-sm font-semibold shrink-0">{fmt(c.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -276,13 +403,12 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
                         <span className={`h-2 w-2 rounded-full shrink-0 ${statusDot[inv.status] ?? "bg-muted-foreground/40"}`} />
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">#{inv.invoice_number}</p>
-                          <p className="text-xs text-muted-foreground">{formatDate(inv.created_at)}</p>
+                          <p className="text-xs text-muted-foreground capitalize">{inv.status} · {formatDate(inv.created_at)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-sm font-semibold">{fmt(inv.total)}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${statusBadge[inv.status] ?? ""}`}>{inv.status}</span>
-                      </div>
+                      <span className={`text-sm font-semibold px-2.5 py-1 rounded-full shrink-0 ${amountPill[inv.status] ?? "bg-muted text-muted-foreground"}`}>
+                        {inv.status === "paid" ? "+" : ""}{fmt(inv.total)}
+                      </span>
                     </Link>
                   ))}
                 </div>
@@ -323,4 +449,3 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
     </div>
   );
 }
-

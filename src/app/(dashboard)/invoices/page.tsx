@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getDefaultBusiness } from "@/lib/default-business";
 import { Header } from "@/components/layout/header";
@@ -28,6 +29,8 @@ const BLANK_FORM = {
 
 export default function InvoicesPage() {
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -42,6 +45,14 @@ export default function InvoicesPage() {
   const [form, setForm] = useState(BLANK_FORM);
 
   useEffect(() => { loadData(); }, []);
+
+  // Opened via the dashboard's floating "New Invoice" button (/invoices?new=1)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setOpen(true);
+      router.replace("/invoices");
+    }
+  }, [searchParams, router]);
 
   async function loadData() {
     setPageLoading(true);

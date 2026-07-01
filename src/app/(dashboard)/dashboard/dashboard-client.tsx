@@ -6,6 +6,7 @@ import {
   DollarSign, TrendingUp, TrendingDown, Clock, Users, FileText,
   CheckCircle2, Circle, Building2, UserPlus, Package, Zap,
   ChevronDown, ChevronUp, Loader2, ArrowRight, AlertCircle,
+  BarChart3, Plus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -204,14 +205,16 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
   const fmt = (v: number) => formatCurrency(v, business.currency);
 
   return (
-    <div>
-      <div className="border-b bg-card px-6 py-4 md:pl-6 pl-16 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{business.name}</h1>
+    <div className="relative min-h-full">
+      <div className="border-b bg-card px-6 py-4 md:pl-6 pl-16 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold truncate">{business.name}</h1>
           <p className="text-sm text-muted-foreground">Financial overview</p>
         </div>
-        <Link href="/invoices">
-          <Button size="sm"><FileText className="mr-2 h-4 w-4" />New Invoice</Button>
+        <Link href="/reports" className="shrink-0">
+          <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground" aria-label="Reports">
+            <BarChart3 className="h-5 w-5" />
+          </Button>
         </Link>
       </div>
       <div className="p-6 space-y-6">

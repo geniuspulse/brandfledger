@@ -1,6 +1,3 @@
-// UPDATED: src/app/(dashboard)/reports/page.tsx
-// Changes: Added working CSV export button + expense breakdown by category chart
-
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -10,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { Download, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
 import type { Business } from "@/types";
 
 const PIE_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6"];
@@ -23,13 +20,17 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState({ revenue: 0, expenses: 0, profit: 0 });
   const [rawInvoices, setRawInvoices] = useState<any[]>([]);
   const [rawExpenses, setRawExpenses] = useState<any[]>([]);
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => { loadData(); }, [period]);
 
   async function loadData() {
+    setPageLoading(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: biz } = await supabase.from("businesses").select("*").eq("owner_id", user!.id).single();
+    if (!user) { setPageLoading(false); return; }
+    const { data: biz } = await supabase.from("businesses").select("*").eq("owner_id", user.id).single();
+    if (!biz) { setPageLoading(false); return; }
     setBusiness(biz);
 
     const months = parseInt(period);
@@ -39,7 +40,7 @@ export default function ReportsPage() {
 
     const [{ data: invoices }, { data: expenses }] = await Promise.all([
       supabase.from("invoices").select("total, status, issue_date, invoice_number, customers(name)").eq("business_id", biz.id).eq("status", "paid").gte("issue_date", fromDate.toISOString()),
-      supabase.from("expenses").select("amount, date, description, category, vendor").eq("business_id", biz.id).gte("date", fromDate.toISOString()),
+      supabase.from("expenses").select("amount, date, description, category, vendor").eq("business_id", biz.id).gte("date", fromDate.toISOString().split("T")[0]),
     ]);
 
     setRawInvoices(invoices ?? []);
@@ -71,35 +72,41 @@ export default function ReportsPage() {
       profit: chartData.reduce((s, m) => s + m.profit, 0),
     });
 
-    // Expense breakdown by category
     const catMap: Record<string, number> = {};
     expenses?.forEach(exp => {
-      catMap[exp.category || "Other"] = (catMap[exp.category || "Other"] ?? 0) + exp.amount;
+      const cat = exp.category || "Other";
+      catMap[cat] = (catMap[cat] ?? 0) + exp.amount;
     });
     setExpenseByCategory(Object.entries(catMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value));
+    setPageLoading(false);
   }
 
   function exportCSV() {
-    const currency = business?.currency ?? "USD";
-    const rows: string[][] = [
-      ["Type", "Date", "Description", "Category / Customer", "Amount", "Status"],
-    ];
+    const rows: string[][] = [["Type", "Date", "Description", "Category / Customer", "Amount", "Status"]];
     rawInvoices.forEach(inv => {
-      rows.push(["Revenue", inv.issue_date, `Invoice ${inv.invoice_number}`, (inv as any).customers?.name ?? "", String(inv.total), "paid"]);
+      rows.push(["Revenue", inv.issue_date, "Invoice " + inv.invoice_number, (inv as any).customers?.name ?? "", String(inv.total), "paid"]);
     });
     rawExpenses.forEach(exp => {
       rows.push(["Expense", exp.date, exp.description, exp.category ?? "", String(exp.amount), ""]);
     });
-
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '\"\"  ') + '"').join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `brandfledger-report-${period}mo-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = "brandfledger-report-" + period + "mo-" + new Date().toISOString().slice(0, 10) + ".csv";
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  if (pageLoading) return (
+    <div>
+      <Header title="Reports" description="Financial overview and analytics" />
+      <div className="p-6 flex items-center justify-center py-32">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -128,10 +135,10 @@ export default function ReportsPage() {
             <Card key={stat.label}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{stat.label}</CardTitle>
-                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                <stat.icon className={"h-5 w-5 " + stat.color} />
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${stat.color}`}>{formatCurrency(stat.value, business?.currency)}</div>
+                <div className={"text-2xl font-bold " + stat.color}>{formatCurrency(stat.value, business?.currency)}</div>
               </CardContent>
             </Card>
           ))}

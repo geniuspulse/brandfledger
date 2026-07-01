@@ -14,8 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { createClient } from "@/lib/supabase/client";
-import { getDefaultBusiness } from "@/lib/default-business";
 import { useRouter } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -111,13 +109,18 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                 </div>
                 <Button size="sm" disabled={loading || !bizForm.name} onClick={async () => {
                   setLoading(true); setError("");
-                  const sb = createClient();
-                  // Guard against double-insert if button clicked twice
-                  const { data: existing } = await getDefaultBusiness(sb);
-                  if (existing) { setStatus(s => ({ ...s, hasBusiness: true })); setExpanded("customer"); setLoading(false); router.refresh(); return; }
-                  const { error: e } = await sb.from("businesses").insert({ ...bizForm }).select().single();
-                  if (e) { setError(e.message); setLoading(false); return; }
-                  setStatus(s => ({ ...s, hasBusiness: true })); setExpanded("customer"); setLoading(false); router.refresh();
+                  try {
+                    const res = await fetch("/api/onboarding", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ step: "business", data: bizForm }),
+                    });
+                    const json = await res.json();
+                    if (!res.ok) { setError(json.error ?? "Something went wrong"); setLoading(false); return; }
+                    setStatus(s => ({ ...s, hasBusiness: true })); setExpanded("customer"); setLoading(false); router.refresh();
+                  } catch {
+                    setError("Something went wrong. Please try again."); setLoading(false);
+                  }
                 }}>{loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}Save business</Button>
               </div>
             )}
@@ -132,12 +135,18 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                 <div className="flex gap-2">
                   <Button size="sm" disabled={loading || !custForm.name} onClick={async () => {
                     setLoading(true); setError("");
-                    const sb = createClient();
-                    const { data: biz, error: bizErr } = await getDefaultBusiness(sb);
-                    if (bizErr || !biz) { setError(bizErr?.message ?? "Business not found"); setLoading(false); return; }
-                    const { error: custErr } = await sb.from("customers").insert({ ...custForm, business_id: biz.id, total_invoiced: 0 });
-                    if (custErr) { setError(custErr.message); setLoading(false); return; }
-                    setStatus(s => ({ ...s, hasCustomer: true })); setExpanded("product"); setLoading(false);
+                    try {
+                      const res = await fetch("/api/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ step: "customer", data: custForm }),
+                      });
+                      const json = await res.json();
+                      if (!res.ok) { setError(json.error ?? "Something went wrong"); setLoading(false); return; }
+                      setStatus(s => ({ ...s, hasCustomer: true })); setExpanded("product"); setLoading(false);
+                    } catch {
+                      setError("Something went wrong. Please try again."); setLoading(false);
+                    }
                   }}>{loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}Add customer</Button>
                   <Button size="sm" variant="ghost" onClick={() => { setError(""); setStatus(s => ({ ...s, hasCustomer: true })); setExpanded("product"); }}>Skip</Button>
                 </div>
@@ -154,12 +163,18 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                 <div className="flex gap-2">
                   <Button size="sm" disabled={loading || !prodForm.name} onClick={async () => {
                     setLoading(true); setError("");
-                    const sb = createClient();
-                    const { data: biz, error: bizErr } = await getDefaultBusiness(sb);
-                    if (bizErr || !biz) { setError(bizErr?.message ?? "Business not found"); setLoading(false); return; }
-                    const { error: prodErr } = await sb.from("products").insert({ name: prodForm.name, price: parseFloat(prodForm.price) || 0, category: prodForm.category, business_id: biz.id });
-                    if (prodErr) { setError(prodErr.message); setLoading(false); return; }
-                    setStatus(s => ({ ...s, hasProduct: true })); setExpanded(null); setLoading(false);
+                    try {
+                      const res = await fetch("/api/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ step: "product", data: prodForm }),
+                      });
+                      const json = await res.json();
+                      if (!res.ok) { setError(json.error ?? "Something went wrong"); setLoading(false); return; }
+                      setStatus(s => ({ ...s, hasProduct: true })); setExpanded(null); setLoading(false);
+                    } catch {
+                      setError("Something went wrong. Please try again."); setLoading(false);
+                    }
                   }}>{loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}Add product</Button>
                   <Button size="sm" variant="ghost" onClick={() => { setError(""); setStatus(s => ({ ...s, hasProduct: true })); setExpanded(null); }}>Skip</Button>
                 </div>

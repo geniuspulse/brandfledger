@@ -36,18 +36,26 @@ const statusBadge: Record<string, string> = {
   overdue: "bg-red-100 text-red-700 border-red-200",
 };
 
-function StatCard({ label, value, sub, icon: Icon, trend }: { label: string; value: string; sub?: string; icon: React.ElementType; trend?: "up" | "down" | "neutral" }) {
+const statTones = {
+  emerald: { bg: "bg-emerald-100 dark:bg-emerald-500/10", icon: "text-emerald-600 dark:text-emerald-400", value: "text-emerald-600 dark:text-emerald-400" },
+  rose: { bg: "bg-rose-100 dark:bg-rose-500/10", icon: "text-rose-600 dark:text-rose-400", value: "text-rose-600 dark:text-rose-400" },
+  primary: { bg: "bg-primary/10", icon: "text-primary", value: "text-foreground" },
+  amber: { bg: "bg-amber-100 dark:bg-amber-500/10", icon: "text-amber-600 dark:text-amber-400", value: "text-foreground" },
+} as const;
+
+function StatCard({ label, value, sub, icon: Icon, tone = "primary" }: { label: string; value: string; sub?: string; icon: React.ElementType; tone?: keyof typeof statTones }) {
+  const t = statTones[tone];
   return (
-    <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-3">
+    <Card className="shadow-sm hover:shadow-md transition-shadow">
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
           <span className="text-sm font-medium text-muted-foreground">{label}</span>
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon className="h-4 w-4 text-primary" />
+          <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${t.bg}`}>
+            <Icon className={`h-4 w-4 ${t.icon}`} />
           </div>
         </div>
-        <div className={`text-2xl font-bold ${trend === "down" ? "text-destructive" : trend === "up" ? "text-green-600" : ""}`}>{value}</div>
-        {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+        <div className={`text-2xl font-bold tracking-tight truncate ${t.value}`}>{value}</div>
+        {sub && <p className="text-xs text-muted-foreground mt-1.5">{sub}</p>}
       </CardContent>
     </Card>
   );
@@ -206,13 +214,15 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
 
   return (
     <div className="relative min-h-full">
-      <div className="border-b bg-card px-6 py-4 md:pl-6 pl-16 flex items-center justify-between gap-3">
+      <div className="relative border-b bg-gradient-to-r from-primary/5 via-card to-card px-6 py-5 md:pl-6 pl-16 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold truncate">{business.name}</h1>
-          <p className="text-sm text-muted-foreground">Financial overview</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight truncate">{business.name}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5" suppressHydrationWarning>
+            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · Financial overview
+          </p>
         </div>
         <Link href="/reports" className="shrink-0">
-          <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground" aria-label="Reports">
+          <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary" aria-label="Reports">
             <BarChart3 className="h-5 w-5" />
           </Button>
         </Link>
@@ -225,10 +235,10 @@ export default function DashboardClient({ business, stats, recentInvoices = [], 
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Revenue" value={fmt(stats.revenue)} sub="From paid invoices" icon={TrendingUp} trend="up" />
-          <StatCard label="Total Expenses" value={fmt(stats.expenses)} icon={TrendingDown} trend="down" />
-          <StatCard label="Net Profit" value={fmt(stats.profit)} icon={DollarSign} trend={stats.profit >= 0 ? "up" : "down"} />
-          <StatCard label="Outstanding" value={fmt(stats.outstandingAmount)} sub={`${stats.outstandingCount} invoice${stats.outstandingCount !== 1 ? "s" : ""}`} icon={Clock} />
+          <StatCard label="Total Revenue" value={fmt(stats.revenue)} sub="From paid invoices" icon={TrendingUp} tone="emerald" />
+          <StatCard label="Total Expenses" value={fmt(stats.expenses)} icon={TrendingDown} tone="rose" />
+          <StatCard label="Net Profit" value={fmt(stats.profit)} icon={DollarSign} tone={stats.profit >= 0 ? "emerald" : "rose"} />
+          <StatCard label="Outstanding" value={fmt(stats.outstandingAmount)} sub={`${stats.outstandingCount} invoice${stats.outstandingCount !== 1 ? "s" : ""}`} icon={Clock} tone="amber" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

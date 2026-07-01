@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { Download, TrendingUp, TrendingDown, DollarSign, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import type { Business } from "@/types";
 
 const PIE_COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#ec4899", "#14b8a6"];
 
 export default function ReportsPage() {
+  const { toast } = useToast();
   const [business, setBusiness] = useState<Business | null>(null);
   const [period, setPeriod] = useState("12");
   const [data, setData] = useState<any[]>([]);
@@ -29,7 +31,11 @@ export default function ReportsPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setPageLoading(false); return; }
-    const { data: biz } = await supabase.from("businesses").select("*").eq("owner_id", user.id).single();
+    const { data: biz, error: bizError } = await supabase.from("businesses").select("*").eq("owner_id", user.id).single();
+    if (bizError && bizError.code !== "PGRST116") {
+      toast({ title: "Couldn't load business", description: bizError.message, variant: "destructive" });
+      setPageLoading(false); return;
+    }
     if (!biz) { setPageLoading(false); return; }
     setBusiness(biz);
 
@@ -38,10 +44,14 @@ export default function ReportsPage() {
     fromDate.setMonth(fromDate.getMonth() - months + 1);
     fromDate.setDate(1);
 
-    const [{ data: invoices }, { data: expenses }] = await Promise.all([
+    const [{ data: invoices, error: invError }, { data: expenses, error: expError }] = await Promise.all([
       supabase.from("invoices").select("total, status, issue_date, invoice_number, customers(name)").eq("business_id", biz.id).eq("status", "paid").gte("issue_date", fromDate.toISOString()),
       supabase.from("expenses").select("amount, date, description, category, vendor").eq("business_id", biz.id).gte("date", fromDate.toISOString().split("T")[0]),
     ]);
+
+    if (invError || expError) {
+      toast({ title: "Couldn't load some report data", description: (invError ?? expError)?.message, variant: "destructive" });
+    }
 
     setRawInvoices(invoices ?? []);
     setRawExpenses(expenses ?? []);

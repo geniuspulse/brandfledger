@@ -32,6 +32,7 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Always allow static assets and internal Next.js routes
   if (
     pathname.startsWith("/auth/") ||
     pathname.startsWith("/api/") ||
@@ -61,7 +62,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (user && (pathname === "/login" || pathname === "/register")) {
+  // Don't redirect logged-in users away from /reset-password (they need it post-recovery)
+  const authOnlyPaths = ["/login", "/register", "/forgot-password"];
+  if (user && authOnlyPaths.includes(pathname)) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

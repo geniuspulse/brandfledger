@@ -88,7 +88,7 @@ export default function CustomersPage() {
 
   if (pageLoading) return (
     <div>
-      <Header title="Customers" description="Manage your customer database" />
+      <Header title="Customers" description="Manage your customer database" icon={Users} />
       <div className="p-6 flex items-center justify-center py-32">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>

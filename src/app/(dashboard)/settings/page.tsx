@@ -29,7 +29,11 @@ export default function SettingsPage() {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return;
     setProfile({ full_name: user.user_metadata?.full_name ?? "", email: user.email ?? "" });
-    const { data: biz } = await sb.from("businesses").select("*").eq("owner_id", user.id).single();
+    const { data: biz, error } = await sb.from("businesses").select("*").eq("owner_id", user.id).single();
+    if (error && error.code !== "PGRST116") {
+      toast({ title: "Couldn't load business settings", description: error.message, variant: "destructive" });
+      return;
+    }
     if (biz) { setBusiness(biz); setBizForm({ name: biz.name, email: biz.email ?? "", phone: biz.phone ?? "", address: biz.address ?? "", website: biz.website ?? "", currency: biz.currency, invoice_prefix: biz.invoice_prefix }); }
   }
 

@@ -31,14 +31,28 @@ export default function LoginForm() {
     e.preventDefault();
     if (!email || !password) { setError("Please fill in all fields."); return; }
     setLoading(true); setError("");
+
     const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
     if (authError) {
-      setError(authError.message.includes("Invalid login") ? "Incorrect email or password." : authError.message);
-      setLoading(false); return;
+      if (authError.message.toLowerCase().includes("invalid login")) {
+        setError("Incorrect email or password.");
+      } else if (authError.message.toLowerCase().includes("email not confirmed")) {
+        setError("Please verify your email before signing in. Check your inbox.");
+      } else {
+        setError(authError.message);
+      }
+      setLoading(false);
+      return;
     }
-    if (data.session) { router.refresh(); router.push("/dashboard"); }
-    else { setError("Sign in failed — please try again."); setLoading(false); }
+
+    // Refresh the router so middleware re-evaluates session, then push to dashboard
+    router.refresh();
+    router.push("/dashboard");
   }
 
   return (

@@ -113,6 +113,9 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                   const sb = createClient();
                   const { data: { user } } = await sb.auth.getUser();
                   if (!user) { setError("Not signed in"); setLoading(false); return; }
+                  // Guard against double-insert if button clicked twice
+                  const { data: existing } = await sb.from("businesses").select("id").eq("owner_id", user.id).single();
+                  if (existing) { setStatus(s => ({ ...s, hasBusiness: true })); setExpanded("customer"); setLoading(false); router.refresh(); return; }
                   const { data: biz, error: e } = await sb.from("businesses").insert({ ...bizForm, owner_id: user.id }).select().single();
                   if (e) { setError(e.message); setLoading(false); return; }
                   await sb.from("business_members").insert({ business_id: biz.id, user_id: user.id, role: "owner" });
@@ -132,6 +135,7 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                     setLoading(true);
                     const sb = createClient();
                     const { data: { user } } = await sb.auth.getUser();
+                    if (!user) { setLoading(false); return; }
                     const { data: biz } = await sb.from("businesses").select("id").eq("owner_id", user!.id).single();
                     await sb.from("customers").insert({ ...custForm, business_id: biz!.id, total_invoiced: 0 });
                     setStatus(s => ({ ...s, hasCustomer: true })); setExpanded("product"); setLoading(false);

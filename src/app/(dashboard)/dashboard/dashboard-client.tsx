@@ -125,6 +125,7 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
             )}
             {!step.done && expanded === step.id && step.id === "customer" && (
               <div className="px-4 pb-4 space-y-3 border-t pt-3">
+                {error && <p className="text-xs text-destructive">{error}</p>}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1"><Label className="text-xs">Name *</Label><Input className="h-8 text-sm" placeholder="Jane Smith" value={custForm.name} onChange={e => setCustForm(p => ({ ...p, name: e.target.value }))} /></div>
                   <div className="space-y-1"><Label className="text-xs">Email</Label><Input className="h-8 text-sm" type="email" value={custForm.email} onChange={e => setCustForm(p => ({ ...p, email: e.target.value }))} /></div>
@@ -132,15 +133,17 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" disabled={loading || !custForm.name} onClick={async () => {
-                    setLoading(true);
+                    setLoading(true); setError("");
                     const sb = createClient();
                     const { data: { user } } = await sb.auth.getUser();
-                    if (!user) { setLoading(false); return; }
-                    const { data: biz } = await sb.from("businesses").select("id").eq("owner_id", user!.id).single();
-                    await sb.from("customers").insert({ ...custForm, business_id: biz!.id, total_invoiced: 0 });
+                    if (!user) { setError("Not signed in"); setLoading(false); return; }
+                    const { data: biz, error: bizErr } = await sb.from("businesses").select("id").eq("owner_id", user.id).single();
+                    if (bizErr || !biz) { setError(bizErr?.message ?? "Business not found"); setLoading(false); return; }
+                    const { error: custErr } = await sb.from("customers").insert({ ...custForm, business_id: biz.id, total_invoiced: 0 });
+                    if (custErr) { setError(custErr.message); setLoading(false); return; }
                     setStatus(s => ({ ...s, hasCustomer: true })); setExpanded("product"); setLoading(false);
                   }}>{loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}Add customer</Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setStatus(s => ({ ...s, hasCustomer: true })); setExpanded("product"); }}>Skip</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setError(""); setStatus(s => ({ ...s, hasCustomer: true })); setExpanded("product"); }}>Skip</Button>
                 </div>
               </div>
             )}

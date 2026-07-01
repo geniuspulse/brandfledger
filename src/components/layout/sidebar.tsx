@@ -1,14 +1,13 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, FileText, CreditCard, Receipt,
   Package, BarChart3, Settings, Zap, UserCircle2, Crown,
-  LogOut, Menu, X, ChevronRight,
+  Menu, X, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -25,18 +24,7 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-
-  async function handleSignOut() {
-    setSigningOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    // refresh() clears the server-side session cache before redirecting
-    router.refresh();
-    router.push("/login");
-  }
 
   const NavItems = () => (
     <>
@@ -99,18 +87,6 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
           <NavItems />
         </nav>
-
-        {/* Sign out */}
-        <div className="p-3 border-t shrink-0">
-          <button
-            onClick={handleSignOut}
-            disabled={signingOut}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            {signingOut ? "Signing out..." : "Sign out"}
-          </button>
-        </div>
       </aside>
     </>
   );

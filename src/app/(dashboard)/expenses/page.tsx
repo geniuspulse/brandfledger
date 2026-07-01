@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Receipt } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Receipt, Loader2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = ["Office", "Rent", "Utilities", "Marketing", "Travel", "Equipment", "Software", "Salaries", "Contractors", "Other"];
+
+const BLANK_FORM = { description: "", category: "Other", amount: "", date: new Date().toISOString().split("T")[0], vendor: "", notes: "" };
 
 export default function ExpensesPage() {
   const { toast } = useToast();
@@ -23,30 +25,61 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ description: "", category: "Other", amount: "", date: new Date().toISOString().split("T")[0], vendor: "", notes: "" });
+  const [pageLoading, setPageLoading] = useState(true);
+  const [form, setForm] = useState(BLANK_FORM);
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
+    setPageLoading(true);
     const sb = createClient();
     const { data: { user } } = await sb.auth.getUser();
-    const { data: biz } = await sb.from("businesses").select("*").eq("owner_id", user!.id).single();
+    if (!user) { setPageLoading(false); return; }
+    const { data: biz } = await sb.from("businesses").select("*").eq("owner_id", user.id).single();
+    if (!biz) { setPageLoading(false); return; }
     setBusiness(biz);
-    if (!biz) return;
     const { data } = await sb.from("expenses").select("*").eq("business_id", biz.id).order("date", { ascending: false });
     setExpenses(data ?? []);
+    setPageLoading(false);
   }
 
-  function openAdd() { setEditing(null); setForm({ description: "", category: "Other", amount: "", date: new Date().toISOString().split("T")[0], vendor: "", notes: "" }); setOpen(true); }
-  function openEdit(e: any) { setEditing(e); setForm({ description: e.description, category: e.category, amount: String(e.amount), date: e.date, vendor: e.vendor ?? "", notes: e.notes ?? "" }); setOpen(true); }
+  function openAdd() {
+    setEditing(null);
+    setForm({ ...BLANK_FORM, date: new Date().toISOString().split("T")[0] });
+    setOpen(true);
+  }
+
+  function openEdit(e: any) {
+    setEditing(e);
+    setForm({ description: e.description, category: e.category, amount: String(e.amount), date: e.date, vendor: e.vendor ?? "", notes: e.notes ?? "" });
+    setOpen(true);
+  }
+
+  function handleOpenChange(v: boolean) {
+    setOpen(v);
+    if (!v) {
+      setEditing(null);
+      setForm({ ...BLANK_FORM, date: new Date().toISOString().split("T")[0] });
+    }
+  }
 
   async function handleSave() {
     if (!form.description || !form.amount || !business) return;
+    const parsedAmount = parseFloat(form.amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast({ title: "Invalid amount", description: "Please enter a valid amount greater than 0.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     const sb = createClient();
-    const data = { description: form.description, category: form.category, amount: parseFloat(form.amount), date: form.date, vendor: form.vendor, notes: form.notes };
-    if (editing) { await sb.from("expenses").update(data).eq("id", editing.id); toast({ title: "Expense updated" }); }
-    else { await sb.from("expenses").insert({ ...data, business_id: business.id }); toast({ title: "Expense logged" }); }
+    const data = { description: form.description, category: form.category, amount: parsedAmount, date: form.date, vendor: form.vendor, notes: form.notes };
+    if (editing) {
+      await sb.from("expenses").update(data).eq("id", editing.id);
+      toast({ title: "Expense updated" });
+    } else {
+      await sb.from("expenses").insert({ ...data, business_id: business.id });
+      toast({ title: "Expense logged" });
+    }
     setOpen(false); setLoading(false); loadData();
   }
 
@@ -64,18 +97,35 @@ export default function ExpensesPage() {
 
   const total = filtered.reduce((s, e) => s + e.amount, 0);
 
+  if (pageLoading) return (
+    <div>
+      <Header title="Expenses" description="Track your business expenses" />
+      <div className="p-6 flex items-center justify-center py-32">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    </div>
+  );
+
   return (
     <div>
       <Header title="Expenses" description="Track your business expenses"
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild><Button onClick={openAdd}><Plus className="mr-2 h-4 w-4" />Log Expense</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>{editing ? "Edit Expense" : "Log Expense"}</DialogTitle></DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-2"><Label>Description *</Label><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Office supplies..." /></div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2"><Label>Amount *</Label><Input type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" /></div>
+                  <div className="space-y-2">
+                    <Label>Amount *</Label>
+                    <Input
+                      type="number" min="0" step="0.01"
+                      value={form.amount}
+                      onChange={e => setForm(p => ({ ...p, amount: e.target.value }))}
+                      placeholder="0.00"
+                    />
+                  </div>
                   <div className="space-y-2"><Label>Date</Label><Input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -88,7 +138,9 @@ export default function ExpensesPage() {
                   <div className="space-y-2"><Label>Vendor</Label><Input value={form.vendor} onChange={e => setForm(p => ({ ...p, vendor: e.target.value }))} placeholder="Supplier name" /></div>
                 </div>
                 <div className="space-y-2"><Label>Notes</Label><Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes" /></div>
-                <Button onClick={handleSave} disabled={loading || !form.description || !form.amount} className="w-full">{loading ? "Saving..." : editing ? "Update" : "Log Expense"}</Button>
+                <Button onClick={handleSave} disabled={loading || !form.description || !form.amount} className="w-full">
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : editing ? "Update Expense" : "Log Expense"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>

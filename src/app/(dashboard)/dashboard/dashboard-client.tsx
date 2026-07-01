@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { createClient } from "@/lib/supabase/client";
+import { getDefaultBusiness } from "@/lib/default-business";
 import { useRouter } from "next/navigation";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -111,14 +112,11 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                 <Button size="sm" disabled={loading || !bizForm.name} onClick={async () => {
                   setLoading(true); setError("");
                   const sb = createClient();
-                  const { data: { user } } = await sb.auth.getUser();
-                  if (!user) { setError("Not signed in"); setLoading(false); return; }
                   // Guard against double-insert if button clicked twice
-                  const { data: existing } = await sb.from("businesses").select("id").eq("owner_id", user.id).single();
+                  const { data: existing } = await getDefaultBusiness(sb);
                   if (existing) { setStatus(s => ({ ...s, hasBusiness: true })); setExpanded("customer"); setLoading(false); router.refresh(); return; }
-                  const { data: biz, error: e } = await sb.from("businesses").insert({ ...bizForm, owner_id: user.id }).select().single();
+                  const { error: e } = await sb.from("businesses").insert({ ...bizForm }).select().single();
                   if (e) { setError(e.message); setLoading(false); return; }
-                  await sb.from("business_members").insert({ business_id: biz.id, user_id: user.id, role: "owner" });
                   setStatus(s => ({ ...s, hasBusiness: true })); setExpanded("customer"); setLoading(false); router.refresh();
                 }}>{loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}Save business</Button>
               </div>
@@ -135,9 +133,7 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                   <Button size="sm" disabled={loading || !custForm.name} onClick={async () => {
                     setLoading(true); setError("");
                     const sb = createClient();
-                    const { data: { user } } = await sb.auth.getUser();
-                    if (!user) { setError("Not signed in"); setLoading(false); return; }
-                    const { data: biz, error: bizErr } = await sb.from("businesses").select("id").eq("owner_id", user.id).single();
+                    const { data: biz, error: bizErr } = await getDefaultBusiness(sb);
                     if (bizErr || !biz) { setError(bizErr?.message ?? "Business not found"); setLoading(false); return; }
                     const { error: custErr } = await sb.from("customers").insert({ ...custForm, business_id: biz.id, total_invoiced: 0 });
                     if (custErr) { setError(custErr.message); setLoading(false); return; }
@@ -159,9 +155,7 @@ function SetupChecklist({ initialStatus }: { initialStatus: SetupStatus }) {
                   <Button size="sm" disabled={loading || !prodForm.name} onClick={async () => {
                     setLoading(true); setError("");
                     const sb = createClient();
-                    const { data: { user } } = await sb.auth.getUser();
-                    if (!user) { setError("Not signed in"); setLoading(false); return; }
-                    const { data: biz, error: bizErr } = await sb.from("businesses").select("id").eq("owner_id", user.id).single();
+                    const { data: biz, error: bizErr } = await getDefaultBusiness(sb);
                     if (bizErr || !biz) { setError(bizErr?.message ?? "Business not found"); setLoading(false); return; }
                     const { error: prodErr } = await sb.from("products").insert({ name: prodForm.name, price: parseFloat(prodForm.price) || 0, category: prodForm.category, business_id: biz.id });
                     if (prodErr) { setError(prodErr.message); setLoading(false); return; }

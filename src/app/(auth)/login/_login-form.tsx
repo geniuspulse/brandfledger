@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle, Info } from "lucide-react";
+import { Loader2, AlertCircle, Info, WifiOff } from "lucide-react";
+import { isNetworkError, sleep, CONNECTION_ERROR_MESSAGE } from "@/lib/network";
 
 function MessageBanner() {
   const searchParams = useSearchParams();
@@ -25,21 +26,33 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [wasNetworkError, setWasNetworkError] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  async function attemptSignIn() {
+    const supabase = createClient();
+    return supabase.auth.signInWithPassword({ email: email.trim(), password });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !password) { setError("Please fill in all fields."); return; }
-    setLoading(true); setError("");
+    if (!email || !password) { setError("Please fill in all fields."); setWasNetworkError(false); return; }
+    setLoading(true); setError(""); setWasNetworkError(false);
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    let { error: authError } = await attemptSignIn();
+
+    // Flaky mobile connections drop the request before it reaches the server —
+    // retry once automatically before bothering the user with an error.
+    if (authError && isNetworkError(authError)) {
+      await sleep(1200);
+      ({ error: authError } = await attemptSignIn());
+    }
 
     if (authError) {
-      if (authError.message.toLowerCase().includes("invalid login")) {
+      if (isNetworkError(authError)) {
+        setError(CONNECTION_ERROR_MESSAGE);
+        setWasNetworkError(true);
+      } else if (authError.message.toLowerCase().includes("invalid login")) {
         setError("Incorrect email or password.");
       } else if (authError.message.toLowerCase().includes("email not confirmed")) {
         setError("Please verify your email before signing in. Check your inbox.");
@@ -65,7 +78,13 @@ export default function LoginForm() {
         <Suspense fallback={null}><MessageBanner /></Suspense>
         {error && (
           <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
-            <AlertCircle className="h-4 w-4 shrink-0" />{error}
+            {wasNetworkError ? <WifiOff className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+            <span className="flex-1">{error}</span>
+            {wasNetworkError && (
+              <button type="submit" className="text-xs font-semibold underline shrink-0" disabled={loading}>
+                Retry
+              </button>
+            )}
           </div>
         )}
         <div className="space-y-2">

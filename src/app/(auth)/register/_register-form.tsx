@@ -6,13 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 export default function RegisterForm() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -22,23 +21,24 @@ export default function RegisterForm() {
     if (form.password !== form.confirm) { setError("Passwords do not match."); return; }
     setLoading(true); setError("");
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase.auth.signUp({
       email: form.email.trim(),
       password: form.password,
-      options: { data: { full_name: form.name }, emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { data: { full_name: form.name } },
     });
     if (authError) { setError(authError.message); setLoading(false); return; }
-    setSuccess(true); setLoading(false);
-  }
 
-  if (success) return (
-    <div className="space-y-4 text-center">
-      <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-      <h2 className="text-xl font-bold">Check your email</h2>
-      <p className="text-muted-foreground text-sm">We sent a confirmation link to <strong>{form.email}</strong>. Click it to activate your account, then sign in.</p>
-      <Link href="/login"><Button className="w-full">Go to sign in</Button></Link>
-    </div>
-  );
+    // Email confirmation is disabled, so signUp returns an active session immediately.
+    if (data.session) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    // Fallback in case confirmation is ever re-enabled server-side.
+    setLoading(false);
+    setError("Account created. Please sign in.");
+  }
 
   return (
     <div className="space-y-6">

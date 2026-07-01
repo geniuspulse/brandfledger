@@ -25,8 +25,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
-
+  // Single getUser() call — refreshes session cookies and reads the user
   const {
     data: { user },
   } = await supabase.auth.getUser();

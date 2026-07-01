@@ -1,4 +1,3 @@
-"use client";
 import Link from "next/link";
 import { Zap } from "lucide-react";
 
@@ -15,7 +14,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </Link>
         <div>
           <blockquote className="text-2xl font-semibold leading-snug mb-4">
-            "Brandfledger turned a 3-hour accounting nightmare into a 20-minute job."
+            &ldquo;Brandfledger turned a 3-hour accounting nightmare into a 20-minute job.&rdquo;
           </blockquote>
           <p className="text-primary-foreground/70 text-sm">— Chisomo M., Freelance Designer</p>
         </div>

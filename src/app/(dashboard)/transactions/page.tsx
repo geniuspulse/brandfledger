@@ -16,6 +16,7 @@ import { useCachedFetch, clearCache } from "@/hooks/use-cached-fetch";
 import type { Transaction, Product } from "@/types";
 import { PAYMENT_METHODS } from "@/types";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { ImportExport } from "@/components/ui/import-export";
 
 const BLANK_LINE = { product_id: "", description: "", qty: "1", unit_price: "", unit_cost: "" };
 const BLANK_INCOME = { client_name: "", payment_method: "cash", date: new Date().toISOString().split("T")[0] };
@@ -344,6 +345,7 @@ export default function TransactionsPage() {
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               </button>
             </div>
+            <ImportExport type="transactions" businessId={bizId} onImported={() => { clearCache(`transactions_v2:${bizId ?? "default"}`); refetch(); }} />
             <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
               <Plus className="h-4 w-4" /> Quick Add
             </Button>
@@ -718,3 +720,4 @@ export default function TransactionsPage() {
     </div>
   );
 }
+

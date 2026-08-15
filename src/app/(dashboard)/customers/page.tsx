@@ -11,6 +11,7 @@ import { Plus, Search, Pencil, Trash2, Users, Loader2, RefreshCw, Phone, Mail, T
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { ImportExport } from "@/components/ui/import-export";
 
 const BLANK_FORM = { name: "", email: "", phone: "", address: "", notes: "" };
 
@@ -139,6 +140,7 @@ export default function CustomersPage() {
           <div className="flex items-center gap-2">
             <LiveBadge isLive={isLive} lastUpdated={lastUpdated} />
             {refreshing && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            <ImportExport type="customers" businessId={business?.id} onImported={() => fetchData(true)} />
             <Dialog open={open} onOpenChange={handleOpenChange}>
               <DialogTrigger asChild>
                 <Button onClick={openAdd} size="sm"><Plus className="mr-1.5 h-4 w-4" />Add Client</Button>
@@ -286,6 +288,7 @@ export default function CustomersPage() {
     </div>
   );
 }
+
 
 
 

@@ -1474,7 +1474,8 @@ export async function recordPayment(
   const newBalanceDue = Number(invoice.total) - newAmountPaid;
   const newStatus = newBalanceDue <= 0 ? "paid" : "partial";
 
-  await supabase
+  // Update invoice first
+  const { error: invUpdateError } = await supabase
     .from("invoices")
     .update({
       amount_paid: newAmountPaid,
@@ -1484,6 +1485,10 @@ export async function recordPayment(
     })
     .eq("id", invoice_id)
     .eq("business_id", ctx.business_id);
+
+  if (invUpdateError) {
+    return { error: `Failed to update invoice: ${invUpdateError.message}` };
+  }
 
   let clientName = customer_name;
   if (!clientName && invoice.customer_id) {
@@ -1495,7 +1500,8 @@ export async function recordPayment(
     clientName = cust?.name || null;
   }
 
-  await supabase.from("transactions").insert({
+  // Insert the transaction — if this fails, rollback the invoice update
+  const { error: txError } = await supabase.from("transactions").insert({
     business_id: ctx.business_id,
     type: "income",
     client_name: clientName || `Invoice ${invoice.invoice_number}`,
@@ -1505,6 +1511,22 @@ export async function recordPayment(
     date: date || new Date().toISOString().split("T")[0],
     invoice_id: invoice_id,
   });
+
+  if (txError) {
+    // Rollback: restore the original invoice state
+    console.error("[recordPayment] Transaction insert failed, rolling back invoice:", txError.message);
+    await supabase
+      .from("invoices")
+      .update({
+        amount_paid: Number(invoice.amount_paid || 0),
+        balance_due: Number(invoice.balance_due || invoice.total),
+        status: invoice.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", invoice_id)
+      .eq("business_id", ctx.business_id);
+    return { error: `Failed to record payment transaction: ${txError.message}. Invoice was not modified.` };
+  }
 
   return {
     invoice_id,
@@ -2177,4 +2199,5 @@ export async function executeReadFunction(
     default: return { error: `Unknown function: \${name}` };
   }
 }
+
 

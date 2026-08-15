@@ -273,8 +273,7 @@ export default function InvoicesPage() {
               {search || statusFilter !== "all" ? "No invoices match your filters." : "No invoices yet. Create your first one!"}
             </p>
             {!search && statusFilter === "all" && (
-              <ImportExport type="invoices" businessId={business?.id} onImported={() => loadData(true)} />
-            <Button size="sm" onClick={() => router.push("/invoices/create")}>
+              <Button size="sm" onClick={() => router.push("/invoices/create")}>
                 <Plus className="mr-1.5 h-4 w-4" />Create Invoice
               </Button>
             )}
@@ -330,4 +329,5 @@ export default function InvoicesPage() {
     </div>
   );
 }
+
 

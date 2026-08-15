@@ -172,10 +172,10 @@ export default function CustomersPage() {
               { label: "Total Revenue", value: formatCurrency(incomeTx.reduce((s: number, t: any) => s + Number(t.amount), 0), currency) },
               { label: "Total Profit", value: formatCurrency(incomeTx.reduce((s: number, t: any) => s + Number(t.profit || 0), 0), currency) },
             ].map(({ label, value }) => (
-              <Card key={label} className="shadow-sm overflow-hidden">
+              <Card key={label} className="shadow-sm overflow-hidden min-w-0">
                 <CardContent className="p-2 sm:p-3 text-center">
                   <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wide font-medium leading-tight">{label}</div>
-                  <div className="text-xs sm:text-base font-bold mt-0.5 text-indigo-600 break-words leading-tight">{value}</div>
+                  <div className="text-xs sm:text-base font-bold mt-0.5 text-indigo-600 truncate leading-tight">{value}</div>
                 </CardContent>
               </Card>
             ))}
@@ -251,15 +251,15 @@ export default function CustomersPage() {
                     {/* Stats row */}
                     {txCount > 0 ? (
                       <div className="mt-2 pt-2 border-t grid grid-cols-3 gap-0.5 text-center overflow-hidden">
-                        <div className="min-w-0">
+                        <div className="min-w-0 overflow-hidden">
                           <div className="text-[10px] sm:text-xs text-muted-foreground">Orders</div>
                           <div className="text-xs sm:text-sm font-semibold">{txCount}</div>
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 overflow-hidden">
                           <div className="text-[10px] sm:text-xs text-muted-foreground">Revenue</div>
-                          <div className="text-[11px] sm:text-sm font-semibold text-emerald-600 leading-tight break-words">{formatCurrency(totalRevenue, currency)}</div>
+                          <div className="text-[11px] sm:text-sm font-semibold text-emerald-600 leading-tight truncate">{formatCurrency(totalRevenue, currency)}</div>
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 overflow-hidden">
                           <div className="text-[10px] sm:text-xs text-muted-foreground">Profit</div>
                           <div className="text-[11px] sm:text-sm font-semibold text-indigo-600 leading-tight flex items-center justify-center gap-0.5 overflow-hidden">
                             <TrendingUp className="h-3 w-3 shrink-0" />
@@ -288,6 +288,7 @@ export default function CustomersPage() {
     </div>
   );
 }
+
 
 
 

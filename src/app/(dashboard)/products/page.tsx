@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { ImportExport } from "@/components/ui/import-export";
 
 const BLANK_FORM = { name: "", description: "", price: "", cost: "", unit: "hr", estimated_hours: "" };
 
@@ -145,6 +146,7 @@ export default function ServicesPage() {
       <Header title="Services" description="Manage your service packages" icon={Briefcase}
         actions={
           <div className="flex items-center gap-2">
+            <ImportExport type="products" businessId={business?.id} onImported={() => loadData(true)} />
             {refreshing && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             <Dialog open={open} onOpenChange={handleOpenChange}>
               <DialogTrigger asChild><Button onClick={openAdd} size="sm"><Plus className="mr-1.5 h-4 w-4" />Add Service</Button></DialogTrigger>
@@ -275,3 +277,4 @@ export default function ServicesPage() {
     </div>
   );
 }
+

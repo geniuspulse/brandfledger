@@ -8,34 +8,41 @@ export const metadata = { title: "Dashboard" };
 function getPeriodRange(period: string) {
   const now = new Date();
   let start: Date;
-  const end: Date = now;
+  let end: Date = now;
+
   switch (period) {
     case "today":
       start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
       break;
-    case "last_month":
-      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    case "yesterday": {
+      const y = new Date(now.getTime() - 86400000);
+      start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0);
+      end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59);
       break;
-    case "this_quarter":
-      start = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+    }
+    case "last_30_days":
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0);
       break;
-    case "this_year":
-      start = new Date(now.getFullYear(), 0, 1);
+    case "last_3_months":
+      start = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate(), 0, 0, 0);
+      break;
+    case "last_6_months":
+      start = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate(), 0, 0, 0);
+      break;
+    case "last_year":
+      start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0);
       break;
     case "all_time":
       start = new Date(2000, 0, 1);
       break;
-    case "this_month":
     default:
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      break;
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0);
   }
-  const rangeEnd = period === "last_month" ? new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59) : end;
-  return { start, end: rangeEnd };
+  return { start, end };
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: { period?: string } }) {
-  const period = searchParams?.period ?? "this_month";
+  const period = searchParams?.period ?? "last_30_days";
   let user: { userId: string; email: string } | null = null;
 
   try {

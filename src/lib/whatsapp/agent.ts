@@ -54,16 +54,9 @@ export async function resolveUser(whatsappNumber: string): Promise<ResolveResult
   if (member) {
     businessId = member.business_id;
   } else {
-    // Fallback: search all members for a normalized match
-    const { data: allMembers } = await supabase
-      .from("business_members")
-      .select("business_id, user_id, whatsapp_number, role");
-    const match = allMembers?.find((m: any) => {
-      const mNorm = m.whatsapp_number?.replace(/[^0-9]/g, "");
-      return mNorm && mNorm === normalized;
-    });
-    if (!match) return null;
-    businessId = match.business_id;
+    // No match — the unique index on whatsapp_number guarantees no duplicates,
+    // so if the exact query didn't find it, the number isn't linked.
+    return null;
   }
 
   if (!businessId) return null;
@@ -93,20 +86,7 @@ export async function resolveUser(whatsappNumber: string): Promise<ResolveResult
   }
 
   // Get the member's role from business_members
-  let memberRole = "member";
-  if (member) {
-    memberRole = member.role || "member";
-  } else {
-    // Fallback: look up role from all members
-    const { data: allMembers } = await supabase
-      .from("business_members")
-      .select("business_id, user_id, whatsapp_number, role");
-    const match = allMembers?.find((m: any) => {
-      const mNorm = m.whatsapp_number?.replace(/[^0-9]/g, "");
-      return mNorm && mNorm === normalized;
-    });
-    if (match) memberRole = match.role || "member";
-  }
+  let memberRole = member?.role || "member";
 
   return {
     ctx: {
@@ -144,7 +124,8 @@ function checkSubscription(status: string, trialEndsAt: string | null): { active
     return { active: false, message: "Your Brandfledger subscription needs to be renewed. Please visit brandfledger.com to renew and continue using the WhatsApp assistant." };
   }
 
-  return { active: true };
+  // Unknown status — deny by default (security: fail closed, not open)
+  return { active: false, message: "Your subscription status is unclear. Please visit brandfledger.com to verify your account." };
 }
 
 export async function processWhatsAppMessage(
@@ -531,4 +512,5 @@ export async function processWhatsAppMessage(
     console.error("WhatsApp message processing error:", err);
   }
 }
+
 

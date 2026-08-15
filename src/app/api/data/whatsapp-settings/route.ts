@@ -45,12 +45,18 @@ export async function GET() {
       }
     }
 
+    // Mask sensitive credentials — only show whether they're set, not the actual values
+    const tokenSet = !!biz.whatsapp_access_token;
+    const openaiSet = !!openaiKey;
+
     return NextResponse.json({
       whatsapp_number: member?.whatsapp_number ?? "",
-      whatsapp_access_token: biz.whatsapp_access_token ?? "",
+      whatsapp_access_token: tokenSet ? "••••••••" : "",
+      whatsapp_access_token_set: tokenSet,
       whatsapp_phone_number_id: biz.whatsapp_phone_number_id ?? "",
       whatsapp_verify_token: biz.whatsapp_verify_token ?? "",
-      openai_api_key: openaiKey,
+      openai_api_key: openaiSet ? "••••••••" : "",
+      openai_api_key_set: openaiSet,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -64,7 +70,10 @@ export async function PUT(request: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { whatsapp_number, whatsapp_access_token, whatsapp_phone_number_id, whatsapp_verify_token, openai_api_key } = body;
+    const { whatsapp_number, whatsapp_phone_number_id, whatsapp_verify_token } = body;
+    // Only update credentials if the user provided real values (not the masked placeholder)
+    const whatsapp_access_token = body.whatsapp_access_token && body.whatsapp_access_token !== "••••••••" ? body.whatsapp_access_token : undefined;
+    const openai_api_key = body.openai_api_key && body.openai_api_key !== "••••••••" ? body.openai_api_key : undefined;
 
     // Get the active business
     const { data: businesses } = await supabase
@@ -79,14 +88,18 @@ export async function PUT(request: Request) {
     const businessId = businesses[0].id;
 
     // Save WhatsApp credentials to the businesses table
+    const bizUpdates: any = {
+      whatsapp_phone_number_id: whatsapp_phone_number_id || null,
+      whatsapp_verify_token: whatsapp_verify_token || null,
+      updated_at: new Date().toISOString(),
+    };
+    // Only update the access token if a real value was provided (not the masked placeholder)
+    if (whatsapp_access_token !== undefined) {
+      bizUpdates.whatsapp_access_token = whatsapp_access_token;
+    }
     const { error: bizError } = await supabase
       .from("businesses")
-      .update({
-        whatsapp_access_token: whatsapp_access_token || null,
-        whatsapp_phone_number_id: whatsapp_phone_number_id || null,
-        whatsapp_verify_token: whatsapp_verify_token || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(bizUpdates)
       .eq("id", businessId);
     if (bizError) throw bizError;
 
@@ -111,7 +124,7 @@ export async function PUT(request: Request) {
       }
     }
 
-    // Save OpenAI key to platform_settings
+    // Save OpenAI key to platform_settings (only if a real value was provided)
     if (openai_api_key) {
       const { data: existingKey } = await supabase
         .from("platform_settings")
@@ -136,3 +149,4 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

@@ -67,23 +67,12 @@ export async function upsertContext(ctx: ConversationContext): Promise<void> {
     updated_at: new Date().toISOString(),
   };
 
-  const { data: existing } = await supabase
+  // Use upsert with onConflict to avoid race conditions when two messages
+  // arrive simultaneously and both try to insert
+  const { error } = await supabase
     .from("whatsapp_conversation_context")
-    .select("id")
-    .eq("business_id", ctx.business_id)
-    .eq("whatsapp_number", ctx.whatsapp_number)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from("whatsapp_conversation_context")
-      .update(row)
-      .eq("id", existing.id);
-  } else {
-    await supabase
-      .from("whatsapp_conversation_context")
-      .insert(row);
-  }
+    .upsert(row, { onConflict: "business_id,whatsapp_number" });
+  if (error) console.error("[upsertContext] Error:", error.message);
 }
 
 export async function clearPendingAction(businessId: string, whatsappNumber: string): Promise<void> {
@@ -133,3 +122,4 @@ export async function appendChatHistory(
   await updateContext(businessId, whatsappNumber, { chat_history: updated });
   return updated;
 }
+

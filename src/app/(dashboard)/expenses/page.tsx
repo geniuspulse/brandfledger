@@ -240,7 +240,7 @@ export default function ExpensesPage() {
             <CardContent suppressHydrationWarning>
               {hasChart ? (
                 <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={chartData} margin={{ left: -20, right: 8, top: 5 }}>
+                  <AreaChart data={chartData} margin={{ left: -8, right: 4, top: 5 }}>
                     <defs>
                       <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
@@ -249,7 +249,7 @@ export default function ExpensesPage() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} interval={5} />
-                    <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatCurrency(v, currency)} width={72} />
+                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatCurrency(v, currency).replace("MK", "K")} width={52} />
                     <Tooltip formatter={(v: number) => formatCurrency(v, currency)} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                     <Area type="monotone" dataKey="amount" stroke="#f43f5e" strokeWidth={2} fill="url(#expGrad)" name="Expenses" dot={false} />
                   </AreaChart>
@@ -292,10 +292,12 @@ export default function ExpensesPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                      <p className="text-xs sm:text-sm font-semibold text-rose-600">-{formatCurrency(Number(e.amount), currency)}</p>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(e.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                      <p className="text-xs sm:text-sm font-semibold text-rose-600 whitespace-nowrap">-{formatCurrency(Number(e.amount), currency)}</p>
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 sm:h-7 sm:w-7" onClick={() => openEdit(e)}><Pencil className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 sm:h-7 sm:w-7" onClick={() => handleDelete(e.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -307,3 +309,4 @@ export default function ExpensesPage() {
     </div>
   );
 }
+

@@ -345,7 +345,7 @@ export default function TransactionsPage() {
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
               </button>
             </div>
-            <ImportExport type="transactions" businessId={bizId} onImported={() => { clearCache(`transactions_v2:${bizId ?? "default"}`); refetch(); }} />
+            <ImportExport type="transactions" businessId={bizId ?? undefined} onImported={() => { clearCache(`transactions_v2:${bizId ?? "default"}`); refetch(); }} />
             <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}>
               <Plus className="h-4 w-4" /> Quick Add
             </Button>
@@ -720,4 +720,5 @@ export default function TransactionsPage() {
     </div>
   );
 }
+
 

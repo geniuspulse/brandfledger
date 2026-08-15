@@ -152,7 +152,7 @@ export default function ExpensesPage() {
   const currency = business?.currency ?? "MWK";
 
   if (pageLoading) return (
-    <div>
+    <div className="overflow-x-hidden">
       <Header title="Expenses" description="Track your business expenses" icon={Receipt} />
       <div className="p-6 flex items-center justify-center py-32">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -161,7 +161,7 @@ export default function ExpensesPage() {
   );
 
   return (
-    <div>
+    <div className="overflow-x-hidden">
       <Header title="Expenses" description="Track your business expenses"
         actions={
           <div className="flex items-center gap-2">
@@ -192,13 +192,13 @@ export default function ExpensesPage() {
       />
       <div className="p-3 sm:p-6 space-y-4">
         {expenses.length > 0 && (
-          <Card className="shadow-sm">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
+          <Card className="shadow-sm overflow-hidden">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Expenses</p>
-                <p className="text-xl font-bold text-rose-600 mt-0.5">{formatCurrency(total, currency)}</p>
+                <p className="text-lg sm:text-xl font-bold text-rose-600 mt-0.5 break-words">{formatCurrency(total, currency)}</p>
               </div>
-              <Receipt className="h-8 w-8 text-muted-foreground/30" />
+              <Receipt className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground/30 shrink-0" />
             </CardContent>
           </Card>
         )}
@@ -216,24 +216,26 @@ export default function ExpensesPage() {
         ) : (
           <div className="grid gap-2">
             {filtered.map(e => (
-              <Card key={e.id} className="shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="flex items-center p-3 gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div className="h-9 w-9 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
-                      <Receipt className="h-4 w-4 text-rose-500" />
+              <Card key={e.id} className="shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                <CardContent className="p-2.5 sm:p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
+                        <Receipt className="h-4 w-4 text-rose-500" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{e.description}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {e.vendor_name ? `${e.vendor_name} · ` : ""}{formatDate(e.date)}
+                          {e.payment_method ? ` · ${e.payment_method}` : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate">{e.description}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {e.vendor_name ? `${e.vendor_name} · ` : ""}{formatDate(e.date)}
-                        {e.payment_method ? ` · ${e.payment_method}` : ""}
-                      </p>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <p className="text-xs sm:text-sm font-semibold text-rose-600">-{formatCurrency(Number(e.amount), currency)}</p>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(e.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <p className="text-sm font-semibold text-rose-600 whitespace-nowrap">-{formatCurrency(Number(e.amount), currency)}</p>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(e)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(e.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
                   </div>
                 </CardContent>
               </Card>
@@ -244,4 +246,5 @@ export default function ExpensesPage() {
     </div>
   );
 }
+
 

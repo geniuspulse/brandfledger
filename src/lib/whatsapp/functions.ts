@@ -1657,25 +1657,6 @@ export const readFunctionDefinitions = [
   {
     type: "function" as const,
     function: {
-      name: "log_time",
-      description: "Log time spent working for a client. Use when the user mentions hours worked, time spent, or tracking time. Calculates billable amount from hours × hourly_rate.",
-      parameters: {
-        type: "object",
-        properties: {
-          customer_name: { type: "string", description: "Client/customer name" },
-          description: { type: "string", description: "What work was done" },
-          hours: { type: "number", description: "Number of hours worked (e.g. 2.5)" },
-          hourly_rate: { type: "number", description: "Billing rate per hour (optional if client has a set rate)" },
-          billable: { type: "boolean", description: "Is this billable to the client? Default true" },
-          work_date: { type: "string", description: "Date of work in YYYY-MM-DD format (default: today)" },
-        },
-        required: ["customer_name", "hours"],
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
       name: "query_wip",
       description: "Check Work In Progress — unbilled time entries per client. Use when user asks about unbilled work, what they can invoice, or outstanding WIP.",
       parameters: {
@@ -1702,22 +1683,6 @@ export const readFunctionDefinitions = [
   {
     type: "function" as const,
     function: {
-      name: "invoice_wip",
-      description: "Create an invoice from unbilled time entries for a client. Automatically groups time entries into invoice line items. Use when user says 'invoice ABC for unbilled work' or 'bill ABC Ltd for all hours'.",
-      parameters: {
-        type: "object",
-        properties: {
-          customer_name: { type: "string", description: "Client to invoice" },
-          description: { type: "string", description: "Invoice description (optional)" },
-          due_date: { type: "string", description: "Due date in YYYY-MM-DD format (optional)" },
-        },
-        required: ["customer_name"],
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
       name: "query_inventory",
       description: "Check product stock levels. Returns current stock, low-stock alerts, out-of-stock items, and total inventory value. Use when user asks about stock, inventory, or what needs restocking.",
       parameters: {
@@ -1725,40 +1690,6 @@ export const readFunctionDefinitions = [
         properties: {
           low_stock_only: { type: "boolean", description: "If true, only return products that are at or below their reorder level. Default false." },
         },
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "restock_product",
-      description: "Restock a product (add inventory). Call this when the user says they bought more stock or received a delivery.",
-      parameters: {
-        type: "object",
-        properties: {
-          product_name: { type: "string", description: "Product name to restock" },
-          quantity: { type: "number", description: "Number of units to add to stock" },
-          unit_cost: { type: "number", description: "Cost per unit of the new stock (optional, updates product cost if provided)" },
-          note: { type: "string", description: "Optional note about this restock (e.g. supplier name, invoice number)" },
-        },
-        required: ["product_name", "quantity"],
-      },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "adjust_stock",
-      description: "Adjust stock level to a specific quantity (for stock takes, damages, losses). Use when the user counts their stock and wants to correct the number.",
-      parameters: {
-        type: "object",
-        properties: {
-          product_name: { type: "string", description: "Product name" },
-          new_quantity: { type: "number", description: "The actual counted quantity to set stock to" },
-          note: { type: "string", description: "Reason for adjustment (e.g. 'stock take', '2 units damaged')" },
-          movement_type: { type: "string", enum: ["adjustment", "loss"], description: "Type of adjustment (default: adjustment, use 'loss' for damaged/lost stock)" },
-        },
-        required: ["product_name", "new_quantity"],
       },
     },
   },
@@ -2168,12 +2099,11 @@ export async function executeReadFunction(
     case "get_weekly_summary": return getWeeklySummary(ctx);
     case "check_overdue_invoices": return checkOverdueInvoices(ctx);
     case "query_inventory": return queryInventory(ctx, args);
-    case "restock_product": return restockProduct(ctx, args);
-    case "adjust_stock": return adjustStock(ctx, args);
-    case "log_time": return logTimeEntry(ctx, args);
+
+
     case "query_wip": return queryWip(ctx, args);
     case "query_client_profitability": return queryClientProfitability(ctx, args);
-    case "invoice_wip": return createInvoiceFromWip(ctx, args);
+
     case "analyze_cash_flow": return analyzeCashFlow(ctx);
     case "compare_periods": return comparePeriods(ctx, args.period1, args.period2);
     case "top_customers": return topCustomers(ctx, args.period);

@@ -13,6 +13,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { ImportExport } from "@/components/ui/import-export";
 
 const statusConfig: Record<string, { label: string; icon: any; className: string }> = {
   draft:   { label: "Draft",   icon: FileText,     className: "bg-muted text-muted-foreground" },
@@ -222,6 +223,7 @@ export default function InvoicesPage() {
           <div className="flex items-center gap-2">
             <LiveBadge isLive={isLive} lastUpdated={lastUpdated} />
             {refreshing && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            <ImportExport type="invoices" businessId={business?.id} onImported={() => loadData(true)} />
             <Button size="sm" onClick={() => router.push("/invoices/create")}>
               <Plus className="mr-1.5 h-4 w-4" />Create
             </Button>
@@ -271,7 +273,8 @@ export default function InvoicesPage() {
               {search || statusFilter !== "all" ? "No invoices match your filters." : "No invoices yet. Create your first one!"}
             </p>
             {!search && statusFilter === "all" && (
-              <Button size="sm" onClick={() => router.push("/invoices/create")}>
+              <ImportExport type="invoices" businessId={business?.id} onImported={() => loadData(true)} />
+            <Button size="sm" onClick={() => router.push("/invoices/create")}>
                 <Plus className="mr-1.5 h-4 w-4" />Create Invoice
               </Button>
             )}
@@ -327,3 +330,4 @@ export default function InvoicesPage() {
     </div>
   );
 }
+

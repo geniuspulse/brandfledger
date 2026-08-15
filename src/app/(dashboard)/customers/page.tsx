@@ -14,20 +14,6 @@ import { useRouter } from "next/navigation";
 
 const BLANK_FORM = { name: "", email: "", phone: "", address: "", notes: "" };
 
-function getPalette(name: string) {
-  const palettes = [
-    "bg-indigo-100 text-indigo-700",
-    "bg-amber-100 text-amber-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-purple-100 text-purple-700",
-    "bg-sky-100 text-sky-700",
-    "bg-rose-100 text-rose-700",
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return palettes[Math.abs(hash) % palettes.length];
-}
-
 export default function CustomersPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -211,8 +197,7 @@ export default function CustomersPage() {
           </CardContent></Card>
         ) : (
           <div className="grid gap-3">
-            {filtered.map((c: any) => {
-              const palette = getPalette(c.name);
+            {filtered.map((c: any, idx: number) => {
               const customerTx = incomeTx.filter((t: any) =>
                 t.client_name?.toLowerCase() === c.name.toLowerCase()
               );
@@ -230,8 +215,8 @@ export default function CustomersPage() {
                         className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
                         onClick={() => router.push(`/customers/${c.id}`)}
                       >
-                        <div className={`h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center font-semibold text-sm shrink-0 ${palette}`}>
-                          {c.name.charAt(0).toUpperCase()}
+                        <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg bg-muted flex items-center justify-center font-bold text-sm shrink-0 text-muted-foreground border">
+                          {idx + 1}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold truncate">{c.name}</p>
@@ -301,5 +286,7 @@ export default function CustomersPage() {
     </div>
   );
 }
+
+
 
 

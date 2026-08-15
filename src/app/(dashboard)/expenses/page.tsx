@@ -1,12 +1,14 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Trash2, Receipt, Loader2, RefreshCw } from "lucide-react";
+import { ImportExport } from "@/components/ui/import-export";
+import { Plus, Search, Pencil, Trash2, Receipt, Loader2, RefreshCw, TrendingDown } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -78,7 +80,6 @@ export default function ExpensesPage() {
     setLoading(true);
     try {
       if (editing) {
-        // Update existing transaction
         const res = await fetch("/api/data/transactions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -98,7 +99,6 @@ export default function ExpensesPage() {
         if (!res.ok) throw new Error(data.error || "Failed to update");
         toast({ title: "Expense updated" });
       } else {
-        // Create new expense transaction
         const res = await fetch("/api/data/transactions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -151,6 +151,33 @@ export default function ExpensesPage() {
   const total = filtered.reduce((s, e) => s + Number(e.amount), 0);
   const currency = business?.currency ?? "MWK";
 
+  // Chart data — group by day for last 30 days
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0);
+    const dataMap: Record<string, { label: string; amount: number; sortKey: string }> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      dataMap[key] = { label, amount: 0, sortKey: key };
+    }
+    for (const e of expenses) {
+      if (!e.date) continue;
+      const d = new Date(e.date);
+      if (d < start) continue;
+      const key = d.toISOString().slice(0, 10);
+      if (!dataMap[key]) {
+        dataMap[key] = { label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }), amount: 0, sortKey: key };
+      }
+      dataMap[key].amount += Number(e.amount) || 0;
+    }
+    return Object.values(dataMap).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  }, [expenses]);
+
+  const hasChart = chartData.some(d => d.amount > 0);
+
   if (pageLoading) return (
     <div className="overflow-x-hidden">
       <Header title="Expenses" description="Track your business expenses" icon={Receipt} />
@@ -164,7 +191,8 @@ export default function ExpensesPage() {
     <div className="overflow-x-hidden">
       <Header title="Expenses" description="Track your business expenses"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <ImportExport type="expenses" businessId={business?.id} onImported={() => loadData(true)} />
             {refreshing && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             <Dialog open={open} onOpenChange={handleOpenChange}>
               <DialogTrigger asChild><Button onClick={openAdd} size="sm"><Plus className="mr-1.5 h-4 w-4" />Log Expense</Button></DialogTrigger>
@@ -191,14 +219,47 @@ export default function ExpensesPage() {
         }
       />
       <div className="p-3 sm:p-6 space-y-4">
+        {/* Summary + Chart */}
         {expenses.length > 0 && (
           <Card className="shadow-sm overflow-hidden">
-            <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Expenses</p>
-                <p className="text-lg sm:text-xl font-bold text-rose-600 mt-0.5 break-words">{formatCurrency(total, currency)}</p>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-rose-100 dark:bg-rose-500/10 flex items-center justify-center shrink-0">
+                  <TrendingDown className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-semibold">Expenses Over Time</CardTitle>
+                  <CardDescription className="text-xs">Last 30 days · Daily</CardDescription>
+                </div>
               </div>
-              <Receipt className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground/30 shrink-0" />
+              <div className="text-right shrink-0">
+                <p className="text-lg font-bold text-rose-600 dark:text-rose-400">{formatCurrency(total, currency)}</p>
+                <p className="text-xs text-muted-foreground">{filtered.length} entries</p>
+              </div>
+            </CardHeader>
+            <CardContent suppressHydrationWarning>
+              {hasChart ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={chartData} margin={{ left: -20, right: 8, top: 5 }}>
+                    <defs>
+                      <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="opacity-30" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} interval={5} />
+                    <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatCurrency(v, currency)} width={72} />
+                    <Tooltip formatter={(v: number) => formatCurrency(v, currency)} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                    <Area type="monotone" dataKey="amount" stroke="#f43f5e" strokeWidth={2} fill="url(#expGrad)" name="Expenses" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <TrendingDown className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                  <p className="text-sm text-muted-foreground">No expense data in the last 30 days</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -215,13 +276,13 @@ export default function ExpensesPage() {
           </CardContent></Card>
         ) : (
           <div className="grid gap-2">
-            {filtered.map(e => (
+            {filtered.map((e, idx) => (
               <Card key={e.id} className="shadow-sm hover:shadow-md transition-shadow overflow-hidden">
                 <CardContent className="p-2.5 sm:p-3">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-rose-100 flex items-center justify-center shrink-0">
-                        <Receipt className="h-4 w-4 text-rose-500" />
+                      <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg bg-muted flex items-center justify-center font-bold text-sm shrink-0 text-muted-foreground border">
+                        {idx + 1}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{e.description}</p>
@@ -246,5 +307,3 @@ export default function ExpensesPage() {
     </div>
   );
 }
-
-

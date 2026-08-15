@@ -62,12 +62,18 @@ export async function GET(request: Request) {
     let csv = "";
     let filename = "";
 
-    if (type === "transactions") {
-      const { data: transactions, error: txErr } = await supabase
+    if (type === "transactions" || type === "expenses") {
+      let query = supabase
         .from("transactions")
         .select("date, type, client_name, vendor_name, description, amount, cost_amount, profit, margin, payment_method, category_id, product_id")
         .eq("business_id", businessId)
         .order("date", { ascending: false });
+
+      if (type === "expenses") {
+        query = query.eq("type", "expense");
+      }
+
+      const { data: transactions, error: txErr } = await query;
 
       if (txErr) throw txErr;
 
@@ -102,7 +108,7 @@ export async function GET(request: Request) {
         { key: "margin", label: "Margin %" },
         { key: "payment_method", label: "Payment Method" },
       ]);
-      filename = `${bizName}_transactions_${new Date().toISOString().split("T")[0]}.csv`;
+      filename = `${bizName}_${type}_${new Date().toISOString().split("T")[0]}.csv`;
     } else if (type === "customers") {
       const { data: rows, error: customersErr } = await supabase
         .from("customers")
@@ -156,6 +162,37 @@ export async function GET(request: Request) {
         { key: "created_at", label: "Created" },
       ]);
       filename = `${bizName}_products_${new Date().toISOString().split("T")[0]}.csv`;
+    } else if (type === "invoices") {
+      const { data: invoices, error: invErr } = await supabase
+        .from("invoices")
+        .select("id, invoice_number, customer_id, total, status, issue_date, due_date, created_at")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
+
+      if (invErr) throw invErr;
+
+      const customerIds = Array.from(new Set((invoices || []).map((i: any) => i.customer_id).filter(Boolean))) as string[];
+      let customerMap: Record<string, string> = {};
+      if (customerIds.length > 0) {
+        const { data: customers } = await supabase.from("customers").select("id, name").in("id", customerIds);
+        customerMap = Object.fromEntries((customers || []).map((c: any) => [c.id, c.name]));
+      }
+
+      const rows = (invoices || []).map((i: any) => ({
+        ...i,
+        customer_name: i.customer_id ? customerMap[i.customer_id] || "Unknown" : null,
+      }));
+
+      csv = toCSV(rows, [
+        { key: "invoice_number", label: "Invoice Number" },
+        { key: "customer_name", label: "Customer" },
+        { key: "total", label: `Total (${currency})` },
+        { key: "status", label: "Status" },
+        { key: "issue_date", label: "Issue Date" },
+        { key: "due_date", label: "Due Date" },
+        { key: "created_at", label: "Created" },
+      ]);
+      filename = `${bizName}_invoices_${new Date().toISOString().split("T")[0]}.csv`;
     } else if (type === "summary") {
       const [incomeRes, expensesRes, productsRes, customersRes] = await Promise.all([
         supabase.from("transactions").select("*").eq("business_id", businessId).eq("type", "income").order("date", { ascending: false }),
